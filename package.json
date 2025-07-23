@@ -1,0 +1,81 @@
+{
+  "name": "agentic-workflow-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tools/*",
+    "infra/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\" --names \"frontend,backend\" --prefix-colors \"cyan,magenta\"",
+    "dev:frontend": "pnpm --filter @agentic-workflow/frontend dev",
+    "dev:backend": "pnpm --filter @agentic-workflow/backend dev",
+    "dev:all": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\" --names \"frontend,backend\" --prefix-colors \"cyan,magenta\"",
+    "dev:frontend-only": "pnpm --filter @agentic-workflow/frontend dev",
+    "dev:backend-only": "pnpm --filter @agentic-workflow/backend dev",
+    "build": "pnpm -r --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api build && pnpm -r --filter @agentic-workflow/frontend --filter @agentic-workflow/backend build",
+    "build:frontend": "pnpm --filter @agentic-workflow/frontend build",
+    "build:backend": "pnpm --filter @agentic-workflow/backend build",
+    "build:packages": "pnpm --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api build",
+    "test": "pnpm -r test",
+    "test:frontend": "pnpm --filter @agentic-workflow/frontend test",
+    "test:backend": "pnpm --filter @agentic-workflow/backend test",
+    "test:packages": "pnpm --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api test",
+    "test:watch": "pnpm -r --parallel test:watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:workspaces": "pnpm -r lint",
+    "lint:frontend": "pnpm --filter @agentic-workflow/frontend lint",
+    "lint:backend": "pnpm --filter @agentic-workflow/backend lint",
+    "lint:packages": "pnpm --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:workspaces": "pnpm -r format",
+    "type-check": "pnpm -r type-check",
+    "type-check:frontend": "pnpm --filter @agentic-workflow/frontend type-check",
+    "type-check:packages": "pnpm --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api type-check",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "clean:frontend": "pnpm --filter @agentic-workflow/frontend clean",
+    "clean:backend": "pnpm --filter @agentic-workflow/backend clean",
+    "clean:packages": "pnpm --filter @agentic-workflow/shared --filter @agentic-workflow/ui --filter @agentic-workflow/api clean",
+    "install:all": "pnpm install",
+    "prepare": "husky",
+    "start": "concurrently \"pnpm dev:frontend\" \"pnpm dev:backend\" --names \"frontend,backend\" --prefix-colors \"cyan,magenta\"",
+    "preview": "pnpm --filter @agentic-workflow/frontend preview",
+    "check": "concurrently \"pnpm lint\" \"pnpm type-check\" \"pnpm format:check\" --names \"lint,types,format\" --prefix-colors \"yellow,blue,green\"",
+    "check:fix": "pnpm lint:fix && pnpm format",
+    "migrate": "pnpm --filter @agentic-workflow/backend migrate",
+    "makemigrations": "pnpm --filter @agentic-workflow/backend makemigrations"
+  },
+  "lint-staged": {
+    "{apps,packages}/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^9.31.0",
+    "@pimzino/claude-code-spec-workflow": "^1.2.2",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.31.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.0.0"
+  }
+}
