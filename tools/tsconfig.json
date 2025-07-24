@@ -1,0 +1,11 @@
+{
+  "extends": "../configs/typescript/node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "allowImportingTsExtensions": false,
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.js"],
+  "exclude": ["node_modules", "dist"]
+}

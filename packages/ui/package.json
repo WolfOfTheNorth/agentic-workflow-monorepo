@@ -1,0 +1,75 @@
+{
+  "name": "@agentic-workflow/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaceRoot": "../..",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./Button": {
+      "import": "./dist/components/Button/index.js",
+      "types": "./dist/components/Button/index.d.ts"
+    },
+    "./Input": {
+      "import": "./dist/components/Input/index.js",
+      "types": "./dist/components/Input/index.d.ts"
+    },
+    "./Layout": {
+      "import": "./dist/components/Layout/index.js",
+      "types": "./dist/components/Layout/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@agentic-workflow/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "^8.0.0",
+    "@storybook/addon-interactions": "^8.0.0",
+    "@storybook/addon-links": "^8.0.0",
+    "@storybook/blocks": "^8.0.0",
+    "@storybook/react": "^8.0.0",
+    "@storybook/react-vite": "^8.0.0",
+    "@storybook/test": "^8.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^9.31.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "storybook": "^8.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

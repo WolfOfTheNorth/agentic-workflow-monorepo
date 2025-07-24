@@ -1,0 +1,379 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/*/src/**'
+      - 'apps/*/src/**'
+      - 'docs/**'
+      - 'tools/docs/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'packages/*/src/**'
+      - 'apps/*/src/**'
+      - 'docs/**'
+      - 'tools/docs/**'
+  workflow_dispatch:
+    inputs:
+      force_regenerate:
+        description: 'Force regenerate all documentation'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+  PNPM_VERSION: '9.15.0'
+
+jobs:
+  detect-changes:
+    name: Detect Documentation Changes
+    runs-on: ubuntu-latest
+    outputs:
+      packages_changed: ${{ steps.changes.outputs.packages_changed }}
+      docs_changed: ${{ steps.changes.outputs.docs_changed }}
+      should_generate: ${{ steps.changes.outputs.should_generate }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        run: |
+          FORCE_REGENERATE="${{ github.event.inputs.force_regenerate }}"
+
+          if [ "$FORCE_REGENERATE" = "true" ]; then
+            echo "Force regenerate enabled - processing all packages"
+            echo "packages_changed=true" >> $GITHUB_OUTPUT
+            echo "docs_changed=true" >> $GITHUB_OUTPUT
+            echo "should_generate=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Check if package source files changed
+          PACKAGES_CHANGED="false"
+          if echo "$CHANGED_FILES" | grep -q -E "^(packages|apps)/.*/src/"; then
+            PACKAGES_CHANGED="true"
+          fi
+
+          # Check if documentation files changed
+          DOCS_CHANGED="false"
+          if echo "$CHANGED_FILES" | grep -q -E "^(docs/|tools/docs/)"; then
+            DOCS_CHANGED="true"
+          fi
+
+          # Determine if we should generate docs
+          SHOULD_GENERATE="false"
+          if [ "$PACKAGES_CHANGED" = "true" ] || [ "$DOCS_CHANGED" = "true" ]; then
+            SHOULD_GENERATE="true"
+          fi
+
+          echo "packages_changed=$PACKAGES_CHANGED" >> $GITHUB_OUTPUT
+          echo "docs_changed=$DOCS_CHANGED" >> $GITHUB_OUTPUT
+          echo "should_generate=$SHOULD_GENERATE" >> $GITHUB_OUTPUT
+
+  generate-docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.should_generate == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pnpm-store
+            ~/.cache/pip
+            **/node_modules
+          key: ${{ runner.os }}-docs-deps-${{ hashFiles('**/pnpm-lock.yaml', '**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-deps-
+
+      - name: Install Node.js dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install documentation tools
+        run: |
+          # Install TypeDoc globally for package documentation
+          pnpm add -g typedoc @typedoc/plugin-markdown
+
+          # Install Python documentation tools
+          pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+
+          # Install Mermaid CLI for diagram generation
+          pnpm add -g @mermaid-js/mermaid-cli
+
+      - name: Generate package documentation
+        run: |
+          # Make documentation script executable
+          chmod +x tools/docs/generate-docs.js
+
+          # Generate all documentation
+          node tools/docs/generate-docs.js all
+
+      - name: Generate Mermaid diagrams
+        run: |
+          # Convert Mermaid diagrams to SVG
+          if [ -d "docs/diagrams" ]; then
+            for mmd_file in docs/diagrams/*.mmd; do
+              if [ -f "$mmd_file" ]; then
+                svg_file="${mmd_file%.mmd}.svg"
+                mmdc -i "$mmd_file" -o "$svg_file" -t default -b white
+                echo "Generated diagram: $svg_file"
+              fi
+            done
+          fi
+
+      - name: Validate documentation
+        run: |
+          # Check if all expected documentation files exist
+          echo "Validating generated documentation..."
+
+          MISSING_FILES=""
+
+          # Check main documentation files
+          for file in "docs/setup.md" "docs/contributing.md" "docs/deployment.md" "docs/architecture.md"; do
+            if [ ! -f "$file" ]; then
+              MISSING_FILES="$MISSING_FILES $file"
+            fi
+          done
+
+          # Check API documentation
+          if [ ! -f "docs/api/README.md" ]; then
+            MISSING_FILES="$MISSING_FILES docs/api/README.md"
+          fi
+
+          if [ -n "$MISSING_FILES" ]; then
+            echo "Missing documentation files:$MISSING_FILES"
+            exit 1
+          fi
+
+          echo "Documentation validation passed!"
+
+      - name: Generate documentation index
+        run: |
+          # Create a comprehensive documentation index
+          cat > docs/README.md << 'EOF'
+          # Documentation Index
+
+          Welcome to the AI-First Modular Monorepo documentation!
+
+          ## Getting Started
+
+          - [**Setup Guide**](setup.md) - Complete setup instructions
+          - [**Contributing Guide**](contributing.md) - Development workflow and standards
+          - [**Architecture Overview**](architecture.md) - System design and structure
+          - [**Deployment Guide**](deployment.md) - Deployment strategies and environments
+
+          ## API Documentation
+
+          - [**API Overview**](api/README.md) - Complete API documentation index
+          - [**Shared Package**](api/shared.md) - Common types and utilities
+          - [**UI Library**](api/ui.md) - React component library
+          - [**API Client**](api/api-client.md) - HTTP client library
+
+          ## Architecture Diagrams
+
+          - [**System Overview**](diagrams/system-overview.svg) - High-level architecture
+          - [**Data Flow**](diagrams/data-flow.svg) - Request/response flow
+
+          ## Package Documentation
+
+          ### Applications
+          - [**Frontend**](api/frontend.md) - React application
+          - [**Backend**](api/backend.md) - Django REST API
+
+          ### Shared Packages
+          - [**@monorepo/shared**](api/shared.md) - Common utilities and types
+          - [**@monorepo/ui**](api/ui.md) - React component library
+          - [**@monorepo/api**](api/api-client.md) - API client library
+
+          ## Development Resources
+
+          - [**Setup Guide**](setup.md#quick-start) - Get started in 5 minutes
+          - [**Contributing**](contributing.md#development-workflow) - How to contribute
+          - [**Troubleshooting**](setup.md#troubleshooting) - Common issues and solutions
+
+          ---
+
+          *Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")*
+          *Generated automatically by the documentation pipeline*
+          EOF
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: docs/
+          retention-days: 30
+
+      - name: Comment on PR with documentation preview
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+
+            const comment = `## 📚 Documentation Preview
+
+            Documentation has been generated for this PR. Here are the key files:
+
+            ### 📝 Main Documentation
+            - Setup Guide: [View Changes](../docs/setup.md)
+            - Contributing Guide: [View Changes](../docs/contributing.md)
+            - Architecture Overview: [View Changes](../docs/architecture.md)
+            - Deployment Guide: [View Changes](../docs/deployment.md)
+
+            ### 🔌 API Documentation
+            - API Overview: [View Changes](../docs/api/README.md)
+            - Shared Package: [View Changes](../docs/api/shared.md)
+
+            ### 📈 Architecture Diagrams
+            - System Overview: [View Diagram](../docs/diagrams/system-overview.svg)
+            - Data Flow: [View Diagram](../docs/diagrams/data-flow.svg)
+
+            The documentation artifacts are available for download from the workflow run.
+
+            ---
+
+            *Auto-generated by the documentation workflow*`;
+
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: comment
+            });
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: [detect-changes, generate-docs]
+    if: |
+      github.ref == 'refs/heads/main' && 
+      needs.detect-changes.outputs.should_generate == 'true' && 
+      needs.generate-docs.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          destination_dir: .
+          keep_files: false
+          commit_message: 'docs: auto-update documentation [skip ci]'
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Create documentation deployment tag
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          TAG="docs-deploy-${TIMESTAMP}"
+          git tag $TAG
+          git push origin $TAG
+          echo "Created documentation deployment tag: $TAG"
+
+  validate-links:
+    name: Validate Documentation Links
+    runs-on: ubuntu-latest
+    needs: generate-docs
+    if: needs.generate-docs.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: docs/
+
+      - name: Install link checker
+        run: npm install -g markdown-link-check
+
+      - name: Check documentation links
+        run: |
+          echo "Checking documentation links..."
+
+          EXIT_CODE=0
+
+          # Check all markdown files for broken links
+          find docs -name '*.md' -type f | while read -r file; do
+            echo "Checking links in: $file"
+            if ! markdown-link-check "$file" --config .github/link-check-config.json; then
+              echo "Link check failed for: $file"
+              EXIT_CODE=1
+            fi
+          done
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Documentation link validation failed!"
+            exit 1
+          fi
+
+          echo "All documentation links are valid!"
+
+  notify-completion:
+    name: Notify Documentation Update
+    runs-on: ubuntu-latest
+    needs: [generate-docs, deploy-docs, validate-links]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Notify success
+        if: needs.deploy-docs.result == 'success'
+        run: |
+          echo "🎉 Documentation successfully generated and deployed!"
+          echo "🔗 View at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          echo "📈 Diagrams: Available in docs/diagrams/"
+          echo "🔌 API Docs: Available in docs/api/"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Documentation generation or deployment failed!"
+          echo "Please check the workflow logs for details."
+          exit 1

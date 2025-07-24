@@ -1,0 +1,93 @@
+# =============================================================================
+# Frontend Dockerfile (React + Vite)
+# Multi-stage build for optimized production image
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Base dependencies
+# -----------------------------------------------------------------------------
+FROM node:20-alpine AS base
+
+# Install pnpm globally
+RUN npm install -g pnpm@9.15.0
+
+# Set working directory
+WORKDIR /app
+
+# Copy root package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY .nvmrc ./
+
+# Copy shared configs
+COPY configs/ ./configs/
+COPY tsconfig.json ./
+
+# -----------------------------------------------------------------------------
+# Stage 2: Install dependencies
+# -----------------------------------------------------------------------------
+FROM base AS deps
+
+# Copy package.json files for workspace dependency resolution
+COPY apps/frontend/package.json ./apps/frontend/
+COPY packages/*/package.json ./packages/*/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Stage 3: Build shared packages
+# -----------------------------------------------------------------------------
+FROM deps AS build-packages
+
+# Copy shared package source code
+COPY packages/ ./packages/
+
+# Build shared packages in correct order
+RUN pnpm --filter @agentic-workflow/shared build
+RUN pnpm --filter @agentic-workflow/ui build
+RUN pnpm --filter @agentic-workflow/api build
+
+# -----------------------------------------------------------------------------
+# Stage 4: Build frontend application
+# -----------------------------------------------------------------------------
+FROM build-packages AS build-app
+
+# Copy frontend source code
+COPY apps/frontend/ ./apps/frontend/
+
+# Build frontend application
+RUN pnpm --filter @agentic-workflow/frontend build
+
+# -----------------------------------------------------------------------------
+# Stage 5: Production runtime
+# -----------------------------------------------------------------------------
+FROM nginx:alpine AS production
+
+# Install curl for healthchecks
+RUN apk add --no-cache curl
+
+# Copy nginx configuration
+COPY infra/docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copy built frontend assets
+COPY --from=build-app /app/apps/frontend/dist /usr/share/nginx/html
+
+# Copy static assets
+COPY --from=build-app /app/apps/frontend/public /usr/share/nginx/html
+
+# Create nginx cache directory
+RUN mkdir -p /var/cache/nginx
+
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html
+RUN chown -R nginx:nginx /var/cache/nginx
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+# Expose port
+EXPOSE 80
+
+# Run nginx
+CMD ["nginx", "-g", "daemon off;"]

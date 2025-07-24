@@ -1,0 +1,36 @@
+# =============================================================================
+# Docker Compose Override for Local Development
+# This file is automatically loaded by docker-compose and overrides settings
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Development Frontend Overrides
+  # ---------------------------------------------------------------------------
+  frontend:
+    environment:
+      - VITE_HMR_PORT=24678
+      - VITE_HMR_HOST=0.0.0.0
+    # Enable hot reload for development
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Development Backend Overrides
+  # ---------------------------------------------------------------------------
+  backend:
+    environment:
+      - DJANGO_DEBUG=true
+      - DJANGO_LOG_LEVEL=DEBUG
+    # Enable live reload for development
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Database Development Settings
+  # ---------------------------------------------------------------------------
+  database:
+    # Expose postgres logs for debugging
+    command: postgres -c log_statement=all -c log_destination=stderr

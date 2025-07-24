@@ -1,0 +1,221 @@
+# =============================================================================
+# Docker Compose Configuration for Local Development
+# Agentic Workflow Monorepo
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Database Service
+  # ---------------------------------------------------------------------------
+  database:
+    image: postgres:15-alpine
+    container_name: agentic-workflow-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentic_workflow}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - agentic-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis Service (for caching and sessions)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: agentic-workflow-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - agentic-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Backend Service (Django)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+      target: development
+    container_name: agentic-workflow-backend
+    environment:
+      - NODE_ENV=development
+      - DJANGO_DEBUG=true
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,backend,0.0.0.0
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-agentic_workflow}
+      - REDIS_URL=redis://redis:6379/0
+      - CORS_ORIGIN=http://localhost:3000
+      - BACKEND_PORT=8000
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./apps/backend:/app
+      - backend_media:/app/media
+    networks:
+      - agentic-network
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Frontend Service (React + Vite)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.frontend
+      target: development
+    container_name: agentic-workflow-frontend
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_APP_NAME=Agentic Workflow
+      - VITE_ENABLE_DEBUG_MODE=true
+      - FRONTEND_PORT=3000
+    ports:
+      - '3000:3000'
+      - '24678:24678' # HMR port
+    volumes:
+      - ./apps/frontend:/app/apps/frontend
+      - ./packages:/app/packages
+      - ./configs:/app/configs
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./package.json:/app/package.json
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - agentic-network
+    depends_on:
+      - backend
+    command: >
+      sh -c "
+        pnpm install &&
+        pnpm --filter @agentic-workflow/frontend dev --host 0.0.0.0
+      "
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Development Tools
+  # ---------------------------------------------------------------------------
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: agentic-workflow-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - agentic-network
+    depends_on:
+      - database
+    profiles:
+      - dev-tools
+    restart: unless-stopped
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: agentic-workflow-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - '8081:8081'
+    networks:
+      - agentic-network
+    depends_on:
+      - redis
+    profiles:
+      - dev-tools
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy (for production-like setup)
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: agentic-workflow-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infra/docker/nginx-dev.conf:/etc/nginx/nginx.conf
+      - nginx_logs:/var/log/nginx
+    networks:
+      - agentic-network
+    depends_on:
+      - frontend
+      - backend
+    profiles:
+      - production
+    restart: unless-stopped
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  agentic-network:
+    driver: bridge
+    name: agentic-workflow-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: agentic-workflow-postgres-data
+  redis_data:
+    name: agentic-workflow-redis-data
+  backend_media:
+    name: agentic-workflow-backend-media
+  frontend_node_modules:
+    name: agentic-workflow-frontend-node-modules
+  pgadmin_data:
+    name: agentic-workflow-pgadmin-data
+  nginx_logs:
+    name: agentic-workflow-nginx-logs

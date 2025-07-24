@@ -1,0 +1,14 @@
+{
+  "extends": "../../configs/typescript/node.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "allowJs": true,
+    "checkJs": false,
+    "paths": {
+      "@agentic-workflow/shared": ["./packages/shared/src"],
+      "@agentic-workflow/shared/*": ["./packages/shared/src/*"]
+    }
+  },
+  "include": ["**/*.js", "**/*.ts"],
+  "exclude": ["**/*.py", "**/__pycache__", "**/venv", "**/env"]
+}

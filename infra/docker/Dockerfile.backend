@@ -1,0 +1,106 @@
+# =============================================================================
+# Backend Dockerfile (Django)
+# Multi-stage build for optimized production image
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Base Python environment
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS base
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# -----------------------------------------------------------------------------
+# Stage 2: Install Python dependencies
+# -----------------------------------------------------------------------------
+FROM base AS deps
+
+# Copy requirements first for better caching
+COPY apps/backend/requirements.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# Stage 3: Development image
+# -----------------------------------------------------------------------------
+FROM deps AS development
+
+# Install development dependencies
+RUN pip install --no-cache-dir \
+    django-debug-toolbar \
+    django-extensions \
+    ipython \
+    pytest \
+    pytest-django \
+    black \
+    flake8
+
+# Copy application code
+COPY apps/backend/ ./
+
+# Change ownership to app user
+RUN chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Run development server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# -----------------------------------------------------------------------------
+# Stage 4: Production image
+# -----------------------------------------------------------------------------
+FROM deps AS production
+
+# Install production dependencies
+RUN pip install --no-cache-dir \
+    gunicorn \
+    whitenoise \
+    psycopg2-binary
+
+# Copy application code
+COPY apps/backend/ ./
+
+# Collect static files
+RUN python manage.py collectstatic --noinput
+
+# Change ownership to app user
+RUN chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Run production server
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "backend.wsgi:application"]

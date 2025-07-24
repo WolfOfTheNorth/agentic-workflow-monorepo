@@ -1,0 +1,17 @@
+{
+  "extends": "../../configs/typescript/library.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "jsx": "react-jsx",
+    "baseUrl": "../../",
+    "paths": {
+      "@agentic-workflow/shared": ["../shared/dist/index.d.ts"],
+      "@agentic-workflow/shared/*": ["../shared/dist/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "references": [{ "path": "../shared" }]
+}

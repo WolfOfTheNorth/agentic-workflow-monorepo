@@ -1,0 +1,394 @@
+name: AI-Powered Code Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      spec_name:
+        description: 'Specification name to review'
+        required: false
+        type: string
+      review_type:
+        description: 'Type of AI review to perform'
+        required: false
+        default: 'codeReview'
+        type: choice
+        options:
+          - codeReview
+          - specValidation
+          - requirementsAnalysis
+          - designReview
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.15.0'
+
+jobs:
+  detect-changes:
+    name: Detect Changes for AI Review
+    runs-on: ubuntu-latest
+    outputs:
+      has_code_changes: ${{ steps.changes.outputs.has_code_changes }}
+      has_spec_changes: ${{ steps.changes.outputs.has_spec_changes }}
+      changed_files: ${{ steps.changes.outputs.changed_files }}
+      specs_to_review: ${{ steps.changes.outputs.specs_to_review }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Get changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Check for code changes
+          HAS_CODE_CHANGES="false"
+          if echo "$CHANGED_FILES" | grep -q -E "\.(ts|tsx|js|jsx|py)$"; then
+            HAS_CODE_CHANGES="true"
+          fi
+
+          # Check for spec changes
+          HAS_SPEC_CHANGES="false"
+          if echo "$CHANGED_FILES" | grep -q -E "^\.claude/specs/"; then
+            HAS_SPEC_CHANGES="true"
+          fi
+
+          # Identify specs that might be affected
+          SPECS_TO_REVIEW="[]"
+          if [ "$HAS_CODE_CHANGES" = "true" ] || [ "$HAS_SPEC_CHANGES" = "true" ]; then
+            # Extract spec names from changed files
+            SPEC_NAMES=$(echo "$CHANGED_FILES" | grep -E "^\.claude/specs/" | cut -d'/' -f3 | sort -u | jq -R -s 'split("\n") | map(select(length > 0))' || echo '[]')
+            
+            # If no specific specs identified, use default or input
+            if [ "$SPEC_NAMES" = "[]" ] && [ -n "${{ github.event.inputs.spec_name }}" ]; then
+              SPEC_NAMES='["${{ github.event.inputs.spec_name }}"]'
+            elif [ "$SPEC_NAMES" = "[]" ] && [ "$HAS_CODE_CHANGES" = "true" ]; then
+              # Default to monorepo-structure for code changes
+              SPEC_NAMES='["monorepo-structure"]'
+            fi
+            
+            SPECS_TO_REVIEW="$SPEC_NAMES"
+          fi
+
+          # Output results
+          echo "has_code_changes=$HAS_CODE_CHANGES" >> $GITHUB_OUTPUT
+          echo "has_spec_changes=$HAS_SPEC_CHANGES" >> $GITHUB_OUTPUT
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "specs_to_review=$SPECS_TO_REVIEW" >> $GITHUB_OUTPUT
+
+          echo "Detected changes:"
+          echo "  Code changes: $HAS_CODE_CHANGES"
+          echo "  Spec changes: $HAS_SPEC_CHANGES"
+          echo "  Specs to review: $SPECS_TO_REVIEW"
+
+  ai-code-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_code_changes == 'true'
+    strategy:
+      matrix:
+        spec: ${{ fromJson(needs.detect-changes.outputs.specs_to_review) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare changed files list
+        id: files
+        run: |
+          CHANGED_FILES='${{ needs.detect-changes.outputs.changed_files }}'
+          # Convert to comma-separated list
+          FILES_LIST=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
+          echo "files_list=$FILES_LIST" >> $GITHUB_OUTPUT
+
+      - name: Run AI code review
+        run: |
+          chmod +x tools/ai/code-review.js
+          node tools/ai/code-review.js review --files "${{ steps.files.outputs.files_list }}"
+
+      - name: Run Claude integration review
+        run: |
+          chmod +x tools/ai/claude-integration.js
+          node tools/ai/claude-integration.js review "${{ matrix.spec }}" --files "${{ steps.files.outputs.files_list }}"
+
+      - name: Upload AI review results
+        uses: actions/upload-artifact@v3
+        with:
+          name: ai-review-${{ matrix.spec }}
+          path: |
+            .ai-reviews/
+            tools/ai/.claude-results/
+          retention-days: 7
+
+  ai-spec-validation:
+    name: AI Spec Validation
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.has_spec_changes == 'true' ||
+      github.event.inputs.review_type == 'specValidation'
+    strategy:
+      matrix:
+        spec: ${{ fromJson(needs.detect-changes.outputs.specs_to_review) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run spec validation
+        run: |
+          chmod +x tools/ai/spec-automation.js
+          node tools/ai/spec-automation.js validate "${{ matrix.spec }}"
+
+      - name: Run Claude spec validation
+        run: |
+          chmod +x tools/ai/claude-integration.js
+          node tools/ai/claude-integration.js validate "${{ matrix.spec }}"
+
+      - name: Upload validation results
+        uses: actions/upload-artifact@v3
+        with:
+          name: spec-validation-${{ matrix.spec }}
+          path: |
+            .claude/specs/${{ matrix.spec }}/validation-report.json
+            tools/ai/.claude-results/
+          retention-days: 7
+
+  requirements-analysis:
+    name: AI Requirements Analysis
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.has_spec_changes == 'true' ||
+      github.event.inputs.review_type == 'requirementsAnalysis'
+    strategy:
+      matrix:
+        spec: ${{ fromJson(needs.detect-changes.outputs.specs_to_review) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run requirements analysis
+        run: |
+          chmod +x tools/ai/claude-integration.js
+          node tools/ai/claude-integration.js analyze-requirements "${{ matrix.spec }}"
+
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v3
+        with:
+          name: requirements-analysis-${{ matrix.spec }}
+          path: tools/ai/.claude-results/
+          retention-days: 7
+
+  design-review:
+    name: AI Design Review
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.has_spec_changes == 'true' ||
+      github.event.inputs.review_type == 'designReview'
+    strategy:
+      matrix:
+        spec: ${{ fromJson(needs.detect-changes.outputs.specs_to_review) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run design review
+        run: |
+          chmod +x tools/ai/claude-integration.js
+          node tools/ai/claude-integration.js review-design "${{ matrix.spec }}"
+
+      - name: Upload design review results
+        uses: actions/upload-artifact@v3
+        with:
+          name: design-review-${{ matrix.spec }}
+          path: tools/ai/.claude-results/
+          retention-days: 7
+
+  generate-pr-summary:
+    name: Generate AI PR Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, ai-code-review, ai-spec-validation]
+    if: |
+      always() && 
+      github.event_name == 'pull_request' &&
+      (needs.ai-code-review.result == 'success' || needs.ai-spec-validation.result == 'success')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all AI analysis results
+        uses: actions/download-artifact@v3
+        with:
+          path: ai-results/
+
+      - name: Generate comprehensive PR summary
+        id: summary
+        run: |
+          # Create PR summary from AI analysis results
+          SUMMARY="## 🤖 AI-Powered Code Review Summary\n\n"
+
+          # Check for code review results
+          if ls ai-results/ai-review-*/code-review-*.md >/dev/null 2>&1; then
+            SUMMARY="${SUMMARY}### 🔍 Code Review Results\n\n"
+            for review_file in ai-results/ai-review-*/code-review-*.md; do
+              if [ -f "$review_file" ]; then
+                SUMMARY="${SUMMARY}$(cat "$review_file")\n\n"
+              fi
+            done
+          fi
+
+          # Check for spec validation results
+          if ls ai-results/spec-validation-*/validation-report.json >/dev/null 2>&1; then
+            SUMMARY="${SUMMARY}### 📝 Specification Validation\n\n"
+            for validation_file in ai-results/spec-validation-*/validation-report.json; do
+              if [ -f "$validation_file" ]; then
+                SCORE=$(jq -r '.overall.score' "$validation_file" 2>/dev/null || echo "N/A")
+                STATUS=$(jq -r '.overall.status' "$validation_file" 2>/dev/null || echo "unknown")
+                SUMMARY="${SUMMARY}- **Score:** ${SCORE}/100 (${STATUS})\n"
+              fi
+            done
+            SUMMARY="${SUMMARY}\n"
+          fi
+
+          # Add AI recommendations
+          SUMMARY="${SUMMARY}### 💡 AI Recommendations\n\n"
+          SUMMARY="${SUMMARY}- Review AI analysis results in workflow artifacts\n"
+          SUMMARY="${SUMMARY}- Address high-priority issues before merging\n"
+          SUMMARY="${SUMMARY}- Consider implementing suggested improvements\n"
+          SUMMARY="${SUMMARY}- Validate test coverage for changed code\n\n"
+
+          # Add footer
+          SUMMARY="${SUMMARY}---\n\n"
+          SUMMARY="${SUMMARY}*AI analysis powered by Claude Code integration*\n"
+          SUMMARY="${SUMMARY}*Results are generated automatically and should be reviewed by humans*"
+
+          # Save summary (escape for GitHub Actions)
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR with AI summary
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+
+            // Delete previous AI summary comments
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: number
+            });
+
+            for (const comment of comments.data) {
+              if (comment.user.login === 'github-actions[bot]' && 
+                  comment.body.includes('AI-Powered Code Review Summary')) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: comment.id
+                });
+              }
+            }
+
+            // Add new AI summary comment
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: `${{ steps.summary.outputs.summary }}`
+            });
+
+  ai-review-status:
+    name: AI Review Status Check
+    runs-on: ubuntu-latest
+    needs: [ai-code-review, ai-spec-validation, requirements-analysis, design-review]
+    if: always()
+    steps:
+      - name: Check AI review results
+        run: |
+          echo "AI Review Results:"
+          echo "Code Review: ${{ needs.ai-code-review.result }}"
+          echo "Spec Validation: ${{ needs.ai-spec-validation.result }}"
+          echo "Requirements Analysis: ${{ needs.requirements-analysis.result }}"
+          echo "Design Review: ${{ needs.design-review.result }}"
+
+          # Determine overall status
+          if [ "${{ needs.ai-code-review.result }}" = "failure" ] || 
+             [ "${{ needs.ai-spec-validation.result }}" = "failure" ]; then
+            echo "❌ AI review found critical issues that need attention"
+            exit 1
+          else
+            echo "✅ AI review completed successfully"
+          fi

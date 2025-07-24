@@ -1,0 +1,37 @@
+{
+  "extends": "./configs/typescript/react.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@agentic-workflow/shared": ["./packages/shared/src"],
+      "@agentic-workflow/shared/*": ["./packages/shared/src/*"],
+      "@agentic-workflow/ui": ["./packages/ui/src"],
+      "@agentic-workflow/ui/*": ["./packages/ui/src/*"],
+      "@agentic-workflow/api": ["./packages/api/src"],
+      "@agentic-workflow/api/*": ["./packages/api/src/*"],
+      "@agentic-workflow/frontend": ["./apps/frontend/src"],
+      "@agentic-workflow/frontend/*": ["./apps/frontend/src/*"],
+      "@agentic-workflow/backend": ["./apps/backend/src"],
+      "@agentic-workflow/backend/*": ["./apps/backend/src/*"]
+    }
+  },
+  "references": [
+    {
+      "path": "./apps/frontend"
+    },
+    {
+      "path": "./apps/backend"
+    },
+    {
+      "path": "./packages/shared"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "./packages/api"
+    }
+  ],
+  "files": [],
+  "include": []
+}

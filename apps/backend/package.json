@@ -1,0 +1,22 @@
+{
+  "name": "@agentic-workflow/backend",
+  "private": true,
+  "version": "0.0.0",
+  "workspaceRoot": "../..",
+  "scripts": {
+    "dev": "python3 manage.py runserver",
+    "build": "python3 manage.py collectstatic --noinput",
+    "test": "python3 manage.py test",
+    "lint": "eslint . --ext .js,.ts || echo 'No JS/TS files to lint'",
+    "lint:fix": "eslint . --ext .js,.ts --fix || echo 'No JS/TS files to lint'",
+    "lint:python": "flake8 . || echo 'flake8 not installed'",
+    "format": "prettier --write . || echo 'No files to format'",
+    "format:check": "prettier --check . || echo 'No files to check'",
+    "type-check": "mypy . || echo 'mypy not installed'",
+    "clean": "find . -name '*.pyc' -delete && find . -name '__pycache__' -type d -exec rm -rf {} + || true",
+    "migrate": "python3 manage.py migrate",
+    "makemigrations": "python3 manage.py makemigrations"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
