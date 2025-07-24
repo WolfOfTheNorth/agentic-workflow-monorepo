@@ -34,4 +34,4 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          node .github/scripts/create-issues-from-md.js ${{ github.event.inputs.stories_folder }}
+          node .github/scripts/create-issues-from-md.cjs ${{ github.event.inputs.stories_folder }}
