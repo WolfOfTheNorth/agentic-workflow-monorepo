@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Base dependencies
 # -----------------------------------------------------------------------------
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # Install pnpm globally
 RUN npm install -g pnpm@9.15.0
