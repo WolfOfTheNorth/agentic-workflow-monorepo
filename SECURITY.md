@@ -213,7 +213,7 @@ After a fix is available and deployed:
 ## Contact Information
 
 - **Security Email**: [security@yourproject.com](mailto:security@yourproject.com)
-- **Maintainer**: @davebhardwaj
+- **Maintainer**: @WolfOfTheNorth
 - **Security Team**: (to be established)
 
 ## Acknowledgments

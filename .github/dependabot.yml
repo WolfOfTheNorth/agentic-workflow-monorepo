@@ -10,9 +10,9 @@ updates:
       time: '09:00'
     open-pull-requests-limit: 10
     assignees:
-      - '@davebhardwaj'
+      - '@WolfOfTheNorth'
     reviewers:
-      - '@davebhardwaj'
+      - '@WolfOfTheNorth'
     commit-message:
       prefix: 'chore(deps)'
       include: 'scope'
@@ -83,7 +83,7 @@ updates:
       time: '09:00'
     open-pull-requests-limit: 5
     assignees:
-      - '@davebhardwaj'
+      - '@WolfOfTheNorth'
     commit-message:
       prefix: 'chore(backend/deps)'
     labels:
