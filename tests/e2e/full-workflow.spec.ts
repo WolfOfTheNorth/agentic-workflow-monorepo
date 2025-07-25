@@ -3,12 +3,12 @@
 // Comprehensive tests covering both frontend and backend workflows
 // =============================================================================
 
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { testUsers } from './fixtures/test-data';
 import { HomePage } from './page-objects/HomePage';
 import { LoginPage } from './page-objects/LoginPage';
-import { AuthUtils } from './utils/auth';
 import { ApiUtils } from './utils/api';
-import { testUsers, testData } from './fixtures/test-data';
+import { AuthUtils } from './utils/auth';
 
 test.describe('Full Application Workflow', () => {
   let apiUtils: ApiUtils;
@@ -59,7 +59,6 @@ test.describe('Full Application Workflow', () => {
     const profileResponse = await apiUtils.get('/api/auth/profile/', {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     await ApiUtils.expectApiResponse(profileResponse, 200);
     const profile = await profileResponse.json();
     expect(profile.username).toBe(newUser.username);
@@ -105,7 +104,6 @@ test.describe('Full Application Workflow', () => {
     });
 
     await ApiUtils.expectApiResponse(updatedProfileResponse, 200);
-    const updatedProfile = await updatedProfileResponse.json();
     // Would check for updated bio if that field exists
 
     // Step 11: Test data manipulation workflow
@@ -150,7 +148,7 @@ test.describe('Full Application Workflow', () => {
       await apiUtils.delete(`/api/users/${newUser.username}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch (error) {
+    } catch {
       // It's okay if cleanup fails
       console.log('Cleanup failed, but test passed');
     }
@@ -183,7 +181,6 @@ test.describe('Full Application Workflow', () => {
     await page.route('**/api/**', route => {
       route.abort('internetdisconnected');
     });
-
     await loginPage.login('testuser', 'testpass');
 
     // Should handle network error gracefully
@@ -192,106 +189,108 @@ test.describe('Full Application Workflow', () => {
     // Clean up route interception
     await page.unroute('**/api/**');
   });
+});
 
-  test('real-time data synchronization', async ({ page, context }) => {
-    // Test real-time features if implemented (WebSocket, SSE, etc.)
+test('real-time data synchronization', async ({ page, context }) => {
+  // Test real-time features if implemented (WebSocket, SSE, etc.)
 
-    // Create second page/tab to simulate concurrent users
-    const secondPage = await context.newPage();
+  // Create second page/tab to simulate concurrent users
+  const secondPage = await context.newPage();
 
-    // Login first user
-    await AuthUtils.loginUser(page, testUsers.user.username, testUsers.user.password);
+  // Login first user
+  await AuthUtils.loginUser(page, testUsers.user.username, testUsers.user.password);
 
-    // Login second user (admin)
-    await AuthUtils.loginUser(secondPage, testUsers.admin.username, testUsers.admin.password);
+  // Login second user (admin)
+  await AuthUtils.loginUser(secondPage, testUsers.admin.username, testUsers.admin.password);
 
-    // Navigate both to same data view
-    await page.goto('/projects');
-    await secondPage.goto('/projects');
+  // Navigate both to same data view
+  await page.goto('/projects');
+  await secondPage.goto('/projects');
 
-    // Create data from second user
-    if (await secondPage.locator('[data-testid="create-project-button"]').isVisible()) {
-      await secondPage.click('[data-testid="create-project-button"]');
-      await secondPage.fill('[data-testid="project-name-input"]', 'Real-time Test Project');
-      await secondPage.fill('[data-testid="project-description-input"]', 'Testing real-time sync');
-      await secondPage.click('[data-testid="project-submit-button"]');
+  // Create data from second user
+  if (await secondPage.locator('[data-testid="create-project-button"]').isVisible()) {
+    await secondPage.click('[data-testid="create-project-button"]');
+    await secondPage.fill('[data-testid="project-name-input"]', 'Real-time Test Project');
+    await secondPage.fill('[data-testid="project-description-input"]', 'Testing real-time sync');
+    await secondPage.click('[data-testid="project-submit-button"]');
 
-      await expect(secondPage.locator('[data-testid="success-message"]')).toBeVisible();
-    }
+    await expect(secondPage.locator('[data-testid="success-message"]')).toBeVisible();
+  }
 
-    // Check if first user sees the update (refresh if no real-time)
-    await page.reload();
-    await expect(page.locator('text=Real-time Test Project')).toBeVisible();
+  // Check if first user sees the update (refresh if no real-time)
+  await page.reload();
+  await expect(page.locator('text=Real-time Test Project')).toBeVisible();
 
-    await secondPage.close();
-  });
+  await secondPage.close();
+});
 
-  test('performance and load testing', async ({ page }) => {
-    // Test application performance under various conditions
+test('performance and load testing', async ({ page }) => {
+  // Test application performance under various conditions
 
-    // Measure page load times
-    const startTime = Date.now();
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    const loadTime = Date.now() - startTime;
+  // Measure page load times
+  const startTime = Date.now();
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const loadTime = Date.now() - startTime;
 
-    // Should load within reasonable time (adjust threshold as needed)
-    expect(loadTime).toBeLessThan(5000);
+  // Should load within reasonable time (adjust threshold as needed)
+  expect(loadTime).toBeLessThan(5000);
 
-    // Test API response times
-    const apiStartTime = Date.now();
-    const healthResponse = await apiUtils.get('/api/health/');
-    const apiResponseTime = Date.now() - apiStartTime;
+  // Test API response times
+  const apiUtils = new ApiUtils(page);
+  const apiStartTime = Date.now();
+  const healthResponse = await apiUtils.get('/api/health/');
+  const apiResponseTime = Date.now() - apiStartTime;
 
-    expect(healthResponse.ok()).toBe(true);
-    expect(apiResponseTime).toBeLessThan(2000);
+  expect(healthResponse.ok()).toBe(true);
+  expect(apiResponseTime).toBeLessThan(2000);
 
-    // Test multiple concurrent API calls
-    const concurrentCalls = Array.from({ length: 5 }, () => apiUtils.get('/api/health/'));
+  // Test multiple concurrent API calls
+  const concurrentCalls = Array.from({ length: 5 }, () => apiUtils.get('/api/health/'));
 
-    const responses = await Promise.all(concurrentCalls);
-    responses.forEach(response => {
-      expect(response.ok()).toBe(true);
-    });
-  });
-
-  test('accessibility and usability', async ({ page }) => {
-    // Test accessibility features
-
-    await page.goto('/');
-
-    // Check for proper heading structure
-    const h1Elements = await page.locator('h1').count();
-    expect(h1Elements).toBeGreaterThan(0);
-
-    // Check for proper form labels
-    await page.goto('/login');
-    const usernameLabel = page.locator('label[for="username"], label:has-text("Username")');
-    const passwordLabel = page.locator('label[for="password"], label:has-text("Password")');
-
-    await expect(usernameLabel).toBeVisible();
-    await expect(passwordLabel).toBeVisible();
-
-    // Test keyboard navigation
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    const focusedElement = await page.locator(':focus');
-    await expect(focusedElement).toBeVisible();
-
-    // Test ARIA attributes if implemented
-    const buttons = page.locator('button');
-    const buttonCount = await buttons.count();
-
-    for (let i = 0; i < buttonCount; i++) {
-      const button = buttons.nth(i);
-      const isVisible = await button.isVisible();
-      if (isVisible) {
-        const ariaLabel = await button.getAttribute('aria-label');
-        const textContent = await button.textContent();
-
-        // Button should have either aria-label or text content
-        expect(ariaLabel || textContent).toBeTruthy();
-      }
-    }
+  const responses = await Promise.all(concurrentCalls);
+  responses.forEach(response => {
+    expect(response.ok()).toBe(true);
   });
 });
+
+test('accessibility and usability', async ({ page }) => {
+  // Test accessibility features
+
+  await page.goto('/');
+
+  // Check for proper heading structure
+  const h1Elements = await page.locator('h1').count();
+  expect(h1Elements).toBeGreaterThan(0);
+
+  // Check for proper form labels
+  await page.goto('/login');
+  const usernameLabel = page.locator('label[for="username"], label:has-text("Username")');
+  const passwordLabel = page.locator('label[for="password"], label:has-text("Password")');
+
+  await expect(usernameLabel).toBeVisible();
+  await expect(passwordLabel).toBeVisible();
+
+  // Test keyboard navigation
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  const focusedElement = await page.locator(':focus');
+  await expect(focusedElement).toBeVisible();
+
+  // Test ARIA attributes if implemented
+  const buttons = page.locator('button');
+  const buttonCount = await buttons.count();
+
+  for (let i = 0; i < buttonCount; i++) {
+    const button = buttons.nth(i);
+    const isVisible = await button.isVisible();
+    if (isVisible) {
+      const ariaLabel = await button.getAttribute('aria-label');
+      const textContent = await button.textContent();
+
+      // Button should have either aria-label or text content
+      expect(ariaLabel || textContent).toBeTruthy();
+    }
+  }
+});
+// ...existing code...

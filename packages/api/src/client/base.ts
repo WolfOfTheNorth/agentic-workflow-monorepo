@@ -51,7 +51,7 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-    let data: any;
+    let data: unknown;
 
     try {
       const text = await response.text();
@@ -60,11 +60,27 @@ export class ApiClient {
       throw new Error('Invalid JSON response');
     }
 
+    // Type guard for object with string keys
+    const isObj = (val: unknown): val is Record<string, unknown> =>
+      typeof val === 'object' && val !== null;
+
+    let message: string | undefined = undefined;
+    let code: string | undefined = undefined;
+    if (isObj(data)) {
+      message =
+        typeof data.message === 'string'
+          ? data.message
+          : typeof data.detail === 'string'
+            ? data.detail
+            : undefined;
+      code = typeof data.code === 'string' ? data.code : undefined;
+    }
+
     if (!response.ok) {
       const apiError: ApiError = {
-        message: data?.message || data?.detail || `HTTP ${response.status}`,
-        code: data?.code || response.status.toString(),
-        details: data,
+        message: message || `HTTP ${response.status}`,
+        code: code || response.status.toString(),
+        details: isObj(data) ? data : undefined,
       };
       throw apiError;
     }
@@ -73,7 +89,7 @@ export class ApiClient {
       data: data as T,
       status: response.status,
       success: true,
-      message: data?.message,
+      message,
     };
   }
 
@@ -94,7 +110,7 @@ export class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), config?.timeout || this.timeout);
 
@@ -112,7 +128,7 @@ export class ApiClient {
     }
   }
 
-  async put<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), config?.timeout || this.timeout);
 
@@ -130,7 +146,11 @@ export class ApiClient {
     }
   }
 
-  async patch<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async patch<T>(
+    endpoint: string,
+    data?: unknown,
+    config?: RequestConfig
+  ): Promise<ApiResponse<T>> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), config?.timeout || this.timeout);
 

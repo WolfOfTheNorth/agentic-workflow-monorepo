@@ -3,10 +3,10 @@
 // Tests for frontend-backend API integration
 // =============================================================================
 
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { testUsers } from './fixtures/test-data';
 import { ApiUtils } from './utils/api';
 import { AuthUtils } from './utils/auth';
-import { testUsers, testData } from './fixtures/test-data';
 
 test.describe('API Integration', () => {
   let apiUtils: ApiUtils;
@@ -15,12 +15,12 @@ test.describe('API Integration', () => {
     apiUtils = new ApiUtils(page);
   });
 
-  test('should check backend health', async ({ page }) => {
+  test('should check backend health', async () => {
     const isHealthy = await apiUtils.healthCheck();
     expect(isHealthy).toBe(true);
   });
 
-  test('should get API response from health endpoint', async ({ page }) => {
+  test('should get API response from health endpoint', async () => {
     const response = await apiUtils.get('/api/health/');
 
     expect(response.ok()).toBe(true);
@@ -31,7 +31,7 @@ test.describe('API Integration', () => {
     expect(data.status).toBe('healthy');
   });
 
-  test('should authenticate via API', async ({ page }) => {
+  test('should authenticate via API', async () => {
     const response = await apiUtils.post('/api/auth/login/', {
       username: testUsers.user.username,
       password: testUsers.user.password,
@@ -64,7 +64,7 @@ test.describe('API Integration', () => {
     expect(profile.username).toBe(testUsers.user.username);
   });
 
-  test('should handle API errors gracefully', async ({ page }) => {
+  test('should handle API errors gracefully', async () => {
     // Try to access protected endpoint without auth
     const response = await apiUtils.get('/api/auth/profile/');
 
@@ -74,7 +74,7 @@ test.describe('API Integration', () => {
     expect(error).toHaveProperty('error');
   });
 
-  test('should handle network timeouts', async ({ page }) => {
+  test('should handle network timeouts', async () => {
     // This test simulates slow network
     test.setTimeout(45000);
 

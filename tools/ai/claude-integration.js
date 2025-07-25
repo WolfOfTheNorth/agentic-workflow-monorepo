@@ -462,60 +462,7 @@ function simulateClaudeWorkflow(command) {
 function generateCIIntegration() {
   log('Generating CI/CD integration for Claude workflows...', 'claude');
 
-  const ciScript = `#!/bin/bash
-
-# Claude Code AI Integration Script
-# Runs AI-powered workflows as part of CI/CD pipeline
-
-set -e
-
-WORKSPACE_ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
-AI_TOOLS_DIR="\$WORKSPACE_ROOT/tools/ai"
-
-# Configuration
-SPEC_NAME="\${1:-\$(basename \$PWD)}"
-WORKFLOW="\${2:-codeReview}"
-BASE_BRANCH="\${3:-main}"
-
-echo "🤖 Running Claude Code AI workflow: \$WORKFLOW for \$SPEC_NAME"
-
-# Get changed files
-CHANGED_FILES="$(git diff --name-only \$BASE_BRANCH...HEAD)"
-
-if [ -z "\$CHANGED_FILES" ]; then
-  echo "No changes detected. Skipping AI workflow."
-  exit 0
-fi
-
-echo "Changed files:"
-echo "\$CHANGED_FILES"
-
-# Run code review workflow
-if [ "\$WORKFLOW" = "codeReview" ]; then
-  echo "Running AI-assisted code review..."
-  node "\$AI_TOOLS_DIR/claude-integration.js" review "\$SPEC_NAME" --files "\$CHANGED_FILES"
-fi
-
-# Run spec validation workflow
-if [ "\$WORKFLOW" = "specValidation" ]; then
-  echo "Running spec validation..."
-  node "\$AI_TOOLS_DIR/claude-integration.js" validate "\$SPEC_NAME"
-fi
-
-# Run requirements analysis workflow
-if [ "\$WORKFLOW" = "requirementsAnalysis" ]; then
-  echo "Running requirements analysis..."
-  node "\$AI_TOOLS_DIR/claude-integration.js" analyze-requirements "\$SPEC_NAME"
-fi
-
-# Run design review workflow
-if [ "\$WORKFLOW" = "designReview" ]; then
-  echo "Running design review..."
-  node "\$AI_TOOLS_DIR/claude-integration.js" review-design "\$SPEC_NAME"
-fi
-
-echo "✅ Claude Code AI workflow completed successfully"
-`;
+  const ciScript = `#!/bin/bash\n\n# Claude Code AI Integration Script\n# Runs AI-powered workflows as part of CI/CD pipeline\n\nset -e\n\n# Configuration\n\nWORKSPACE_ROOT=$(cd $(dirname "\${BASH_SOURCE[0]}")/../.. && pwd)\nAI_TOOLS_DIR="\${WORKSPACE_ROOT}/tools/ai"\nSPEC_NAME="\${1:-$(basename $PWD)}"\nWORKFLOW="\${2:-codeReview}"\nBASE_BRANCH="\${3:-main}"\n\necho "🤖 Running Claude Code AI workflow: $WORKFLOW for $SPEC_NAME"\n\n# Get changed files\nCHANGED_FILES=$(git diff --name-only $BASE_BRANCH...HEAD)\n\nif [ -z "$CHANGED_FILES" ]; then\n  echo "No changes detected. Skipping AI workflow."\n  exit 0\nfi\n\necho "Changed files:"\necho "$CHANGED_FILES"\n\n# Run code review workflow\nif [ "$WORKFLOW" = "codeReview" ]; then\n  echo "Running AI-assisted code review..."\n  node "$AI_TOOLS_DIR/claude-integration.js" review "$SPEC_NAME" --files "$CHANGED_FILES"\nfi\n\n# Run spec validation workflow\nif [ "$WORKFLOW" = "specValidation" ]; then\n  echo "Running spec validation..."\n  node "$AI_TOOLS_DIR/claude-integration.js" validate "$SPEC_NAME"\nfi\n\n# Run requirements analysis workflow\nif [ "$WORKFLOW" = "requirementsAnalysis" ]; then\n  echo "Running requirements analysis..."\n  node "$AI_TOOLS_DIR/claude-integration.js" analyze-requirements "$SPEC_NAME"\nfi\n\n# Run design review workflow\nif [ "$WORKFLOW" = "designReview" ]; then\n  echo "Running design review..."\n  node "$AI_TOOLS_DIR/claude-integration.js" review-design "$SPEC_NAME"\nfi\n\necho "✅ Claude Code AI workflow completed successfully"\n`;
 
   const scriptPath = path.join(AI_TOOLS_DIR, 'run-claude-workflow.sh');
   writeFile(scriptPath, ciScript);

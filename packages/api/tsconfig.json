@@ -8,8 +8,8 @@
     "jsx": "react-jsx",
     "baseUrl": "../../",
     "paths": {
-      "@agentic-workflow/shared": ["../shared/dist/index.d.ts"],
-      "@agentic-workflow/shared/*": ["../shared/dist/*"]
+      "@agentic-workflow/shared": ["../shared/src/index"],
+      "@agentic-workflow/shared/*": ["../shared/src/*"]
     }
   },
   "include": ["src/**/*"],

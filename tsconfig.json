@@ -33,5 +33,6 @@
     }
   ],
   "files": [],
-  "include": []
+  "include": [],
+  "exclude": ["apps/backend/staticfiles", "node_modules", "dist", "build"]
 }

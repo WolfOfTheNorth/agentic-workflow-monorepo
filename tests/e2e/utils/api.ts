@@ -3,7 +3,7 @@
 // Common API interaction functions for Playwright tests
 // =============================================================================
 
-import { Page, APIResponse } from '@playwright/test';
+import { APIResponse, Page } from '@playwright/test';
 
 export class ApiUtils {
   private page: Page;
@@ -14,11 +14,11 @@ export class ApiUtils {
     this.baseURL = baseURL;
   }
 
-  async get(endpoint: string, options: any = {}) {
+  async get(endpoint: string, options: Record<string, unknown> = {}) {
     return await this.page.request.get(`${this.baseURL}${endpoint}`, options);
   }
 
-  async post(endpoint: string, data: any, options: any = {}) {
+  async post(endpoint: string, data: unknown, options: Record<string, unknown> = {}) {
     return await this.page.request.post(`${this.baseURL}${endpoint}`, {
       data,
       headers: {
@@ -29,7 +29,7 @@ export class ApiUtils {
     });
   }
 
-  async put(endpoint: string, data: any, options: any = {}) {
+  async put(endpoint: string, data: unknown, options: Record<string, unknown> = {}) {
     return await this.page.request.put(`${this.baseURL}${endpoint}`, {
       data,
       headers: {
@@ -40,7 +40,7 @@ export class ApiUtils {
     });
   }
 
-  async delete(endpoint: string, options: any = {}) {
+  async delete(endpoint: string, options: Record<string, unknown> = {}) {
     return await this.page.request.delete(`${this.baseURL}${endpoint}`, options);
   }
 
@@ -53,7 +53,7 @@ export class ApiUtils {
         if (response.status() === expectedStatus) {
           return response;
         }
-      } catch (error) {
+      } catch {
         // Continue waiting
       }
 

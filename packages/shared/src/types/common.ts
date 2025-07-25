@@ -16,7 +16,7 @@ export interface SelectOption<T = string> {
 
 export type Status = 'idle' | 'loading' | 'success' | 'error';
 
-export interface AsyncState<T = any> {
+export interface AsyncState<T = unknown> {
   data: T | null;
   status: Status;
   error: string | null;

@@ -3,9 +3,9 @@
 // Runs once after all tests
 // =============================================================================
 
-import { chromium, FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 
-async function globalTeardown(config: FullConfig) {
+async function globalTeardown() {
   console.log('🧹 Starting global teardown...');
 
   const browser = await chromium.launch();
@@ -25,7 +25,7 @@ async function globalTeardown(config: FullConfig) {
   }
 }
 
-async function cleanupTestData(page: any) {
+async function cleanupTestData(page: unknown) {
   try {
     // Remove test user if needed
     await page.request.delete('http://localhost:8000/api/auth/users/testuser/', {
@@ -35,7 +35,7 @@ async function cleanupTestData(page: any) {
     });
 
     console.log('✅ Test data cleaned up');
-  } catch (error) {
+  } catch {
     console.log('ℹ️ Test data cleanup failed, but continuing...');
   }
 }

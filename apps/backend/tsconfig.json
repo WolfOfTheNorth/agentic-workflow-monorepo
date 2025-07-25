@@ -10,5 +10,5 @@
     }
   },
   "include": ["**/*.js", "**/*.ts"],
-  "exclude": ["**/*.py", "**/__pycache__", "**/venv", "**/env"]
+  "exclude": ["**/*.py", "**/__pycache__", "**/venv", "**/env", "staticfiles"]
 }

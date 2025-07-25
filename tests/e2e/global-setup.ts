@@ -3,9 +3,9 @@
 // Runs once before all tests
 // =============================================================================
 
-import { chromium, FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup() {
   console.log('🚀 Starting global setup...');
 
   // Start browser for setup tasks
@@ -42,7 +42,7 @@ async function globalSetup(config: FullConfig) {
   }
 }
 
-async function seedTestData(page: any) {
+async function seedTestData(page: unknown) {
   try {
     // Create test user via API
     const testUser = {
@@ -59,7 +59,7 @@ async function seedTestData(page: any) {
     });
 
     console.log('✅ Test user created');
-  } catch (error) {
+  } catch {
     // It's okay if user already exists
     console.log('ℹ️ Test user might already exist, continuing...');
   }

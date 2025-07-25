@@ -1,12 +1,12 @@
-import { useState, useCallback } from 'react';
 import { AsyncState } from '@agentic-workflow/shared';
+import { useCallback, useState } from 'react';
 import { getDefaultApiClient } from '../client';
 import {
-  User,
-  UserListResponse,
-  UserListParams,
   CreateUserRequest,
   UpdateUserRequest,
+  User,
+  UserListParams,
+  UserListResponse,
 } from '../types/user';
 
 export interface UseUsersReturn {
@@ -65,8 +65,15 @@ export function useUsers(): UseUsersReturn {
         const response = await client.users.getUsers(params);
 
         setUsersState({ data: response.data, status: 'success', error: null });
-      } catch (error: any) {
-        setUsersState({ data: null, status: 'error', error: error.message });
+      } catch (error) {
+        const errorMsg =
+          typeof error === 'object' &&
+          error !== null &&
+          'message' in error &&
+          typeof (error as { message?: unknown }).message === 'string'
+            ? (error as { message: string }).message
+            : String(error);
+        setUsersState({ data: null, status: 'error', error: errorMsg });
         throw error;
       }
     },
@@ -81,8 +88,15 @@ export function useUsers(): UseUsersReturn {
       const response = await client.users.getUser(id);
 
       setUserState({ data: response.data, status: 'success', error: null });
-    } catch (error: any) {
-      setUserState({ data: null, status: 'error', error: error.message });
+    } catch (error) {
+      const errorMsg =
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+      setUserState({ data: null, status: 'error', error: errorMsg });
       throw error;
     }
   }, []);
@@ -101,8 +115,12 @@ export function useUsers(): UseUsersReturn {
         if (usersState.data) {
           await getUsers();
         }
-      } catch (error: any) {
-        setCreateState({ data: null, status: 'error', error: error.message });
+      } catch (error) {
+        const errorMsg =
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as any).message
+            : String(error);
+        setCreateState({ data: null, status: 'error', error: errorMsg });
         throw error;
       }
     },
@@ -128,8 +146,12 @@ export function useUsers(): UseUsersReturn {
         if (usersState.data) {
           await getUsers();
         }
-      } catch (error: any) {
-        setUpdateState({ data: null, status: 'error', error: error.message });
+      } catch (error) {
+        const errorMsg =
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as any).message
+            : String(error);
+        setUpdateState({ data: null, status: 'error', error: errorMsg });
         throw error;
       }
     },
@@ -155,8 +177,12 @@ export function useUsers(): UseUsersReturn {
         if (usersState.data) {
           await getUsers();
         }
-      } catch (error: any) {
-        setDeleteState({ data: null, status: 'error', error: error.message });
+      } catch (error) {
+        const errorMsg =
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as any).message
+            : String(error);
+        setDeleteState({ data: null, status: 'error', error: errorMsg });
         throw error;
       }
     },

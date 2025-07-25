@@ -1,12 +1,18 @@
-import { useState, useCallback } from 'react';
 import { AsyncState } from '@agentic-workflow/shared';
+import { useCallback, useState } from 'react';
 import { getDefaultApiClient } from '../client';
-import { LoginRequest, RegisterRequest, ProfileResponse } from '../types/auth';
+import {
+  LoginRequest,
+  LoginResponse,
+  ProfileResponse,
+  RegisterRequest,
+  RegisterResponse,
+} from '../types/auth';
 
 export interface UseAuthReturn {
-  loginState: AsyncState<any>;
-  registerState: AsyncState<any>;
-  logoutState: AsyncState<any>;
+  loginState: AsyncState<LoginResponse>;
+  registerState: AsyncState<RegisterResponse>;
+  logoutState: AsyncState<boolean>;
   profileState: AsyncState<ProfileResponse>;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (userData: RegisterRequest) => Promise<void>;
@@ -17,19 +23,19 @@ export interface UseAuthReturn {
 }
 
 export function useAuth(): UseAuthReturn {
-  const [loginState, setLoginState] = useState<AsyncState<any>>({
+  const [loginState, setLoginState] = useState<AsyncState<LoginResponse>>({
     data: null,
     status: 'idle',
     error: null,
   });
 
-  const [registerState, setRegisterState] = useState<AsyncState<any>>({
+  const [registerState, setRegisterState] = useState<AsyncState<RegisterResponse>>({
     data: null,
     status: 'idle',
     error: null,
   });
 
-  const [logoutState, setLogoutState] = useState<AsyncState<any>>({
+  const [logoutState, setLogoutState] = useState<AsyncState<boolean>>({
     data: null,
     status: 'idle',
     error: null,
@@ -52,8 +58,15 @@ export function useAuth(): UseAuthReturn {
       client.setAuthToken(response.data.access_token);
 
       setLoginState({ data: response.data, status: 'success', error: null });
-    } catch (error: any) {
-      setLoginState({ data: null, status: 'error', error: error.message });
+    } catch (error) {
+      const errorMsg =
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+      setLoginState({ data: null, status: 'error', error: errorMsg });
       throw error;
     }
   }, []);
@@ -69,8 +82,15 @@ export function useAuth(): UseAuthReturn {
       client.setAuthToken(response.data.access_token);
 
       setRegisterState({ data: response.data, status: 'success', error: null });
-    } catch (error: any) {
-      setRegisterState({ data: null, status: 'error', error: error.message });
+    } catch (error) {
+      const errorMsg =
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+      setRegisterState({ data: null, status: 'error', error: errorMsg });
       throw error;
     }
   }, []);
@@ -87,8 +107,12 @@ export function useAuth(): UseAuthReturn {
 
       setLogoutState({ data: true, status: 'success', error: null });
       setProfileState({ data: null, status: 'idle', error: null });
-    } catch (error: any) {
-      setLogoutState({ data: null, status: 'error', error: error.message });
+    } catch (error) {
+      const errorMsg =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? (error as any).message
+          : String(error);
+      setLogoutState({ data: null, status: 'error', error: errorMsg });
       throw error;
     }
   }, []);
@@ -101,8 +125,12 @@ export function useAuth(): UseAuthReturn {
       const response = await client.auth.getProfile();
 
       setProfileState({ data: response.data, status: 'success', error: null });
-    } catch (error: any) {
-      setProfileState({ data: null, status: 'error', error: error.message });
+    } catch (error) {
+      const errorMsg =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? (error as any).message
+          : String(error);
+      setProfileState({ data: null, status: 'error', error: errorMsg });
       throw error;
     }
   }, [profileState.data]);
@@ -116,8 +144,12 @@ export function useAuth(): UseAuthReturn {
         const response = await client.auth.updateProfile(profileData);
 
         setProfileState({ data: response.data, status: 'success', error: null });
-      } catch (error: any) {
-        setProfileState({ data: profileState.data, status: 'error', error: error.message });
+      } catch (error) {
+        const errorMsg =
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as any).message
+            : String(error);
+        setProfileState({ data: profileState.data, status: 'error', error: errorMsg });
         throw error;
       }
     },

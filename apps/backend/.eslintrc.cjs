@@ -4,5 +4,14 @@ module.exports = {
     node: true,
     browser: false,
   },
-  ignorePatterns: ['**/*.py', '**/__pycache__/', '**/venv/', '**/env/', '**/migrations/'],
+  ignorePatterns: [
+    '**/*.py',
+    '**/__pycache__/',
+    '**/venv/',
+    '**/.venv/',
+    '**/env/',
+    '**/migrations/',
+    '**/site-packages/',
+    '**/.venv/lib/**',
+  ],
 };

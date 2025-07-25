@@ -1,9 +1,9 @@
+// Jest globals are available by default
+// Use standard jest globals
 // =============================================================================
 // Package Integration Tests
 // Tests for cross-package integration and dependencies
 // =============================================================================
-
-import { describe, it, expect, beforeEach } from '@jest/globals';
 
 // Import from different packages to test integration
 // These imports will be mocked in actual tests until packages are built
@@ -67,7 +67,7 @@ describe('Package Integration Tests', () => {
           this.baseUrl = baseUrl;
         }
 
-        async get<T>(endpoint: string): Promise<{ data: T; message: string }> {
+        async get<T>(): Promise<{ data: T; message: string }> {
           // Simulate API call
           return {
             data: { result: 'success' } as T,
@@ -170,7 +170,7 @@ describe('Package Integration Tests', () => {
         },
       };
 
-      const result = mockErrorHandler.handleApiError({
+      const result = await mockErrorHandler.handleApiError({
         code: 404,
         message: 'Resource not found',
       });
