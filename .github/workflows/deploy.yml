@@ -103,7 +103,7 @@ jobs:
 
       - name: Setup Python
         if: needs.detect-deployment-changes.outputs.should_deploy_backend == 'true'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
