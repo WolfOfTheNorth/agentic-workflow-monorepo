@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-07-25T17:18:35.525Z",
+  "summary": {
+    "totalPackages": 5,
+    "totalVulnerabilities": 0,
+    "severityBreakdown": {
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "fixesAttempted": 0
+  },
+  "vulnerabilities": [],
+  "impactAnalysis": {
+    "byPackage": {},
+    "bySeverity": {
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "byType": {},
+    "recommendations": []
+  },
+  "outdatedDependencies": {
+    "vite-plugin-pwa": {
+      "current": "1.0.1",
+      "latest": "1.0.2",
+      "wanted": "1.0.1",
+      "isDeprecated": false,
+      "dependencyType": "devDependencies"
+    },
+    "@eslint/js": {
+      "current": "9.31.0",
+      "latest": "9.32.0",
+      "wanted": "9.31.0",
+      "isDeprecated": false,
+      "dependencyType": "devDependencies"
+    },
+    "eslint": {
+      "current": "9.31.0",
+      "latest": "9.32.0",
+      "wanted": "9.31.0",
+      "isDeprecated": false,
+      "dependencyType": "devDependencies"
+    }
+  },
+  "fixes": [],
+  "recommendations": [],
+  "workspace": {
+    "root": "/Users/davebhardwaj/Programming/Agentic Workflow",
+    "packages": [
+      {
+        "name": "@agentic-workflow/frontend",
+        "path": "/Users/davebhardwaj/Programming/Agentic Workflow/apps/frontend"
+      },
+      {
+        "name": "@agentic-workflow/backend",
+        "path": "/Users/davebhardwaj/Programming/Agentic Workflow/apps/backend"
+      },
+      {
+        "name": "@agentic-workflow/ui",
+        "path": "/Users/davebhardwaj/Programming/Agentic Workflow/packages/ui"
+      },
+      {
+        "name": "@agentic-workflow/shared",
+        "path": "/Users/davebhardwaj/Programming/Agentic Workflow/packages/shared"
+      },
+      {
+        "name": "@agentic-workflow/api",
+        "path": "/Users/davebhardwaj/Programming/Agentic Workflow/packages/api"
+      }
+    ]
+  }
+}
