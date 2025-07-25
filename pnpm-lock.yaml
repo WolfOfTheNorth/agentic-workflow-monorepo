@@ -18,8 +18,8 @@ importers:
         specifier: ^9.31.0
         version: 9.31.0
       '@pimzino/claude-code-spec-workflow':
-        specifier: ^1.2.2
-        version: 1.2.3
+        specifier: ^1.2.5
+        version: 1.2.5
       '@playwright/test':
         specifier: ^1.54.1
         version: 1.54.1
@@ -111,8 +111,8 @@ importers:
         specifier: ^9.32.0
         version: 9.32.0
       '@pimzino/claude-code-spec-workflow':
-        specifier: ^1.2.2
-        version: 1.2.3
+        specifier: ^1.2.5
+        version: 1.2.5
       '@types/react':
         specifier: ^19.1.8
         version: 19.1.8
@@ -1402,8 +1402,8 @@ packages:
   '@paralleldrive/cuid2@2.2.2':
     resolution: {integrity: sha512-ZOBkgDwEdoYVlSeRbYYXs0S9MejQofiVYoTbKzy/6GQa39/q5tQU2IX46+shYnUkpEl3wc+J6wRlar7r2EK2xA==}
 
-  '@pimzino/claude-code-spec-workflow@1.2.3':
-    resolution: {integrity: sha512-237WIz9qVlljm7HIbosqiUe7Tpe7nCgWnAyvzzzbjKe0Om32CxcwLflQ7pFPDiNkPtLZRcTHG48NGwUqHll3VQ==}
+  '@pimzino/claude-code-spec-workflow@1.2.5':
+    resolution: {integrity: sha512-h56FSmYhR0JIO2NI/duP8FSp65XkKwwJ1miY9L1k0wNGNzGOmbSuGmEgq9fZZjs8zMctZE40D4a+TLZh0k9Owg==}
     engines: {node: '>=16.0.0'}
     hasBin: true
 
@@ -6446,7 +6446,7 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@pimzino/claude-code-spec-workflow@1.2.3':
+  '@pimzino/claude-code-spec-workflow@1.2.5':
     dependencies:
       chalk: 4.1.2
       commander: 11.1.0
