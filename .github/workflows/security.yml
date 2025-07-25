@@ -260,11 +260,11 @@ jobs:
         run: |
           # GitHub sets job status to 'skipped' if matrix is empty or no packages changed
           # We treat 'success' and 'skipped' as passing
-          JOB_STATUSES="${{ toJson(needs) }}"
+          JOB_STATUSES='${{ toJson(needs) }}'
           echo "Job statuses: $JOB_STATUSES"
           FAILED=false
           for job in security-audit dependency-validation; do
-            STATUS=$(echo "$JOB_STATUSES" | jq -r ".[\"$job\"].result")
+            STATUS=$(jq -r ".[\"$job\"].result" <<< "$JOB_STATUSES")
             if [ "$STATUS" != "success" ] && [ "$STATUS" != "skipped" ]; then
               echo "Job $job did not succeed or was not skipped: $STATUS"
               FAILED=true
