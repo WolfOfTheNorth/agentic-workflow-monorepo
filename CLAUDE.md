@@ -1,4 +1,84 @@
-# Spec Workflow
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Agentic Workflow Monorepo
+
+AI-First Modular Monorepo for rapid prototyping with React + Vite frontend and Django backend. Uses pnpm workspaces for efficient package management.
+
+## Essential Development Commands
+
+### Quick Setup
+```bash
+# Install dependencies
+pnpm install
+
+# Copy environment template
+cp .env.example .env.local
+
+# Start all development servers
+pnpm dev
+```
+
+### Development
+```bash
+pnpm dev                 # Start all apps (frontend + backend)
+pnpm dev:frontend        # React frontend only (http://localhost:3000)
+pnpm dev:backend         # Django backend only (http://localhost:8000)
+```
+
+### Testing
+```bash
+pnpm test                # Run all tests
+pnpm test:frontend       # Frontend tests
+pnpm test:backend        # Django backend tests
+pnpm test:e2e            # Playwright e2e tests
+```
+
+### Code Quality
+```bash
+pnpm lint                # Lint all code
+pnpm lint:fix            # Fix linting issues
+pnpm format              # Format all code with Prettier
+pnpm type-check          # TypeScript type checking
+pnpm check               # Run all quality checks
+```
+
+### Building
+```bash
+pnpm build               # Build all packages and apps
+pnpm build:frontend      # Build React frontend
+pnpm build:backend       # Build Django backend
+```
+
+### Database (Django)
+```bash
+pnpm migrate             # Apply database migrations
+pnpm makemigrations      # Create new migrations
+```
+
+## Architecture Overview
+
+**Monorepo Structure:**
+- `apps/frontend/` - React + Vite frontend application
+- `apps/backend/` - Django REST API backend
+- `packages/` - Shared packages (types, UI components, API client)
+- `configs/` - Shared ESLint, Prettier, TypeScript configurations
+- `tools/` - Build tools and development utilities
+
+**Tech Stack:**
+- Frontend: React 19, Vite 7, TypeScript, Tailwind CSS
+- Backend: Django, Django REST Framework, SQLite (dev), PostgreSQL (prod)
+- Package Manager: pnpm with workspaces
+- Testing: Jest, Playwright, Django test framework
+
+**Key Patterns:**
+- Shared types in `@agentic-workflow/shared` package
+- Reusable UI components in `@agentic-workflow/ui`
+- API client in `@agentic-workflow/api` package
+- Workspace-based dependency management with pnpm
+
+## Spec Workflow
 
 This project uses the automated Spec workflow for feature development, based on spec-driven methodology. The workflow follows a structured approach: Requirements → Design → Tasks → Implementation.
 
@@ -311,3 +391,22 @@ A successful spec workflow completion includes:
 6. **Validation**: Ensure each task meets requirements before proceeding
 
 Remember: The workflow ensures systematic feature development with proper documentation, validation, and quality control at each step.
+
+## Development Guidelines
+
+### Package Management
+- Add dependencies to root for build tools: `pnpm add -D -w <package>`
+- Add to specific workspace: `pnpm add --filter @agentic-workflow/frontend <package>`
+- Check package dependencies: `pnpm tools:package-check`
+
+### Code Patterns
+- Follow existing TypeScript patterns in shared packages
+- Use workspace references: `@agentic-workflow/shared`, `@agentic-workflow/ui`, `@agentic-workflow/api`
+- Maintain consistent ESLint/Prettier configuration across workspaces
+- Use Django REST Framework patterns for API endpoints
+
+### Testing Strategy
+- Unit tests for individual components/functions
+- Integration tests for API endpoints and package interactions
+- E2E tests for critical user flows with Playwright
+- Django tests for backend models and views

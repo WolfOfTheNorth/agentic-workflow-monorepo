@@ -40,7 +40,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agentic-workflow/shared": "workspace:*"
+    "@agentic-workflow/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.52.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.0.0",

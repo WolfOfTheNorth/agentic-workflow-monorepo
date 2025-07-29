@@ -2,6 +2,8 @@
 export * from './client';
 export * from './types';
 export * from './hooks';
+export * from './config';
+export * from './adapters';
 
 // Re-export commonly used shared types
 export type {

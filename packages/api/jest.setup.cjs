@@ -1,5 +1,19 @@
 require('@testing-library/jest-dom');
 
+// Mock Supabase to avoid ES module issues
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(),
+  AuthError: class AuthError extends Error {
+    constructor(message, status, code) {
+      super(message);
+      this.name = 'AuthError';
+      this.status = status;
+      this.code = code;
+      this.__isAuthError = true;
+    }
+  },
+}));
+
 // Mock fetch for tests
 global.fetch = jest.fn();
 
