@@ -2,6 +2,8 @@
 
 > 🚀 AI-First Modular Monorepo for rapid prototyping and real-world system design
 
+[![CI Pipeline](https://github.com/WolfOfTheNorth/agentic-workflow-monorepo/actions/workflows/ci.yml/badge.svg)](https://github.com/WolfOfTheNorth/agentic-workflow-monorepo/actions/workflows/ci.yml)
+
 A scalable, modular monorepo architecture that supports multiple apps (frontend, backend), shared code, and infrastructure with AI-first workflows, best-in-class free tools, and seamless developer experience.
 
 ## 📁 Project Structure
