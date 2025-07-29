@@ -43,40 +43,47 @@ jobs:
 
           # Check if frontend changed
           if echo "$CHANGED_FILES" | grep -q "^apps/frontend/"; then
-            PACKAGES=$(echo $PACKAGES | jq '. + ["frontend"]')
+            PACKAGES=$(echo "$PACKAGES" | jq -c '. + ["frontend"]')
           fi
 
           # Check if backend changed
           if echo "$CHANGED_FILES" | grep -q "^apps/backend/"; then
-            PACKAGES=$(echo $PACKAGES | jq '. + ["backend"]')
+            PACKAGES=$(echo "$PACKAGES" | jq -c '. + ["backend"]')
           fi
 
           # Check if shared packages changed
           if echo "$CHANGED_FILES" | grep -q "^packages/shared/"; then
-            PACKAGES=$(echo $PACKAGES | jq '. + ["shared"]')
+            PACKAGES=$(echo "$PACKAGES" | jq -c '. + ["shared"]')
           fi
 
           if echo "$CHANGED_FILES" | grep -q "^packages/ui/"; then
-            PACKAGES=$(echo $PACKAGES | jq '. + ["ui"]')
+            PACKAGES=$(echo "$PACKAGES" | jq -c '. + ["ui"]')
           fi
 
           if echo "$CHANGED_FILES" | grep -q "^packages/api/"; then
-            PACKAGES=$(echo $PACKAGES | jq '. + ["api"]')
+            PACKAGES=$(echo "$PACKAGES" | jq -c '. + ["api"]')
           fi
 
           # Check if root configs changed (affects all packages)
           if echo "$CHANGED_FILES" | grep -q -E "^(package.json|pnpm-workspace.yaml|tsconfig.json|configs/|eslint.config.js)"; then
-            PACKAGES='["frontend", "backend", "shared", "ui", "api"]'
+            PACKAGES='["frontend","backend","shared","ui","api"]'
           fi
 
+          echo "Detected packages: $PACKAGES"
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
 
       - name: Set matrix
         id: set-matrix
         run: |
           PACKAGES='${{ steps.changes.outputs.packages }}'
-          MATRIX=$(echo $PACKAGES | jq -c 'map({"package": .})')
-          echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          echo "Packages detected: $PACKAGES"
+          if [ "$PACKAGES" = "[]" ]; then
+            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          else
+            MATRIX=$(echo "$PACKAGES" | jq -c 'map({"package": .})')
+            echo "Generated matrix: $MATRIX"
+            echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
+          fi
 
   lint-and-typecheck:
     name: Lint & Type Check
