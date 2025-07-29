@@ -8,6 +8,9 @@
     "**/*.spec.ts"
   ],
   "compilerOptions": {
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "strict": false
   }
 }

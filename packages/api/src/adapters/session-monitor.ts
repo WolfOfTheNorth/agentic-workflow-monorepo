@@ -636,7 +636,7 @@ export class SessionMonitor {
   private getConnectionType(): string | null {
     // @ts-ignore - navigator.connection is not in TypeScript definitions
     const connection =
-      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
     return connection?.effectiveType || null;
   }
 

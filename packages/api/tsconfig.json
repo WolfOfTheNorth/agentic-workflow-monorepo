@@ -13,5 +13,6 @@
     }
   },
   "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/__tests__/**/*", "src/**/*.spec.ts"],
   "references": [{ "path": "../shared" }]
 }

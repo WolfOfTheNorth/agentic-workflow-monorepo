@@ -75,7 +75,8 @@ jobs:
         id: set-matrix
         run: |
           PACKAGES='${{ steps.changes.outputs.packages }}'
-          echo "matrix={\"include\":$(echo $PACKAGES | jq 'map({"package": .})' | tr '\n' ' ')}" >> $GITHUB_OUTPUT
+          MATRIX=$(echo $PACKAGES | jq -c 'map({"package": .})')
+          echo "matrix={\"include\":$MATRIX}" >> $GITHUB_OUTPUT
 
   lint-and-typecheck:
     name: Lint & Type Check

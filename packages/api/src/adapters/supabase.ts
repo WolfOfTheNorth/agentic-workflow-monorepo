@@ -65,7 +65,6 @@ import {
   AnalyticsMonitor,
   getAnalyticsMonitor,
   AnalyticsConfig,
-  AuthEventType,
   ErrorSeverity,
 } from './analytics-monitor';
 

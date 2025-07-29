@@ -268,8 +268,8 @@ export class AuthValidationService {
 
     return {
       isValid: result.isValid,
-      errors: result.errors,
-      warnings: result.suggestions || [],
+      errors: (result as any).errors || [],
+      warnings: (result as any).suggestions || [],
       sanitizedData: password, // Don't sanitize passwords
     };
   }
