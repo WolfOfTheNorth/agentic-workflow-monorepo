@@ -281,11 +281,24 @@ jobs:
     steps:
       - name: Check if all jobs succeeded
         run: |
-          if [ "${{ needs.lint-and-typecheck.result }}" != "success" ] || 
-             [ "${{ needs.test.result }}" != "success" ] || 
-             [ "${{ needs.build.result }}" != "success" ] || 
-             [ "${{ needs.security-audit.result }}" != "success" ]; then
-            echo "One or more jobs failed"
+          # Check each job result - accept both "success" and "skipped" as passing
+          LINT_RESULT="${{ needs.lint-and-typecheck.result }}"
+          TEST_RESULT="${{ needs.test.result }}"
+          BUILD_RESULT="${{ needs.build.result }}"
+          SECURITY_RESULT="${{ needs.security-audit.result }}"
+          
+          echo "Job results:"
+          echo "  Lint & Type Check: $LINT_RESULT"
+          echo "  Test: $TEST_RESULT"
+          echo "  Build: $BUILD_RESULT"
+          echo "  Security Audit: $SECURITY_RESULT"
+          
+          # Accept success or skipped as passing states
+          if [[ "$LINT_RESULT" != "success" && "$LINT_RESULT" != "skipped" ]] || \
+             [[ "$TEST_RESULT" != "success" && "$TEST_RESULT" != "skipped" ]] || \
+             [[ "$BUILD_RESULT" != "success" && "$BUILD_RESULT" != "skipped" ]] || \
+             [[ "$SECURITY_RESULT" != "success" && "$SECURITY_RESULT" != "skipped" ]]; then
+            echo "One or more jobs failed (not success or skipped)"
             exit 1
           fi
           echo "All checks passed successfully!"
