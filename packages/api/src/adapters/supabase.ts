@@ -665,7 +665,7 @@ export class SupabaseAdapter {
       const { data } = await this.client.auth.getUser();
       userId = data.user?.id;
       sessionId = this.getCurrentSessionId();
-    } catch (error) {
+    } catch {
       // Ignore errors when getting user info for logout
     }
 
