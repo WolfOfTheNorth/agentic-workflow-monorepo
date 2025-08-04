@@ -112,7 +112,7 @@
     "prettier": "^3.6.2",
     "rollup-plugin-visualizer": "^6.0.3",
     "supertest": "^7.1.4",
-    "typescript": "^5.0.0",
+    "typescript": "^5.9.2",
     "vite-plugin-pwa": "^1.0.1",
     "webpack-bundle-analyzer": "^4.10.2",
     "workbox-webpack-plugin": "^7.3.0"
