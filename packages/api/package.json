@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@agentic-workflow/shared": "workspace:*",
-    "@supabase/supabase-js": "^2.52.1"
+    "@supabase/supabase-js": "^2.54.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.0.0",
