@@ -1,0 +1,203 @@
+/* Mobile-specific styles and utilities */
+
+/* Custom CSS properties for viewport height handling */
+:root {
+  --vh: 1vh;
+}
+
+/* Safe area handling for mobile devices */
+.pb-safe-area {
+  padding-bottom: constant(safe-area-inset-bottom); /* iOS 11.0 */
+  padding-bottom: env(safe-area-inset-bottom); /* iOS 11.2+ */
+}
+
+.pt-safe-area {
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+}
+
+.pl-safe-area {
+  padding-left: constant(safe-area-inset-left);
+  padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe-area {
+  padding-right: constant(safe-area-inset-right);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Full viewport height using CSS custom property */
+.vh-full {
+  height: calc(var(--vh, 1vh) * 100);
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+.min-vh-full {
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+/* Touch-friendly interaction styles */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Enhanced touch targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent zoom on input focus (iOS Safari) */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='tel'],
+textarea {
+  font-size: 16px !important;
+}
+
+@media screen and (max-width: 767px) {
+  /* Mobile-specific styles */
+
+  /* Improved touch targets */
+  button,
+  [role='button'],
+  input[type='submit'],
+  input[type='button'] {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Better spacing for mobile forms */
+  .form-mobile {
+    padding: 1rem;
+  }
+
+  .form-mobile input,
+  .form-mobile textarea,
+  .form-mobile select {
+    padding: 0.75rem;
+    font-size: 16px;
+  }
+
+  /* Mobile-friendly modal/dialog positioning */
+  .mobile-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 2rem;
+  }
+
+  /* Scrollable content for mobile */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    max-height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+/* High DPI display optimizations */
+@media only screen and (-webkit-min-device-pixel-ratio: 2),
+  only screen and (min--moz-device-pixel-ratio: 2),
+  only screen and (-o-min-device-pixel-ratio: 2/1),
+  only screen and (min-device-pixel-ratio: 2),
+  only screen and (min-resolution: 192dpi),
+  only screen and (min-resolution: 2dppx) {
+  /* Enhanced styles for high DPI displays */
+  .border-thin {
+    border-width: 0.5px;
+  }
+}
+
+/* Dark mode support for mobile */
+@media (prefers-color-scheme: dark) {
+  .mobile-form-dark {
+    background-color: #1f2937;
+    color: #f9fafb;
+  }
+
+  .mobile-form-dark input,
+  .mobile-form-dark textarea {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+
+  .mobile-form-dark input:focus,
+  .mobile-form-dark textarea:focus {
+    border-color: #60a5fa;
+    background-color: #1f2937;
+  }
+}
+
+/* Landscape orientation handling */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .mobile-landscape-compact {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .mobile-landscape-compact .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  .mobile-landscape-compact h1,
+  .mobile-landscape-compact h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-scroll {
+    scroll-behavior: auto;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus styles for keyboard navigation */
+.focus-visible:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  .ios-input-fix {
+    transform: translateZ(0);
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+
+  .ios-button-fix {
+    -webkit-appearance: none;
+    border-radius: 0.375rem;
+  }
+}
+
+/* Android specific fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
+  /* Android Chrome specific styles */
+  .android-input-fix {
+    background-clip: padding-box;
+  }
+}

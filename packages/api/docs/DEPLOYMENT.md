@@ -1,24 +1,25 @@
-# Supabase Authentication Deployment Guide
+# Authentication System Deployment Guide
 
-This document provides comprehensive deployment instructions for the Supabase authentication system across different environments.
+This document provides comprehensive deployment instructions for the authentication system across different environments, including Supabase setup and configuration.
 
 ## Table of Contents
 
-1. [Environment Configuration](#environment-configuration)
-2. [Development Setup](#development-setup)
-3. [Staging Deployment](#staging-deployment)
+1. [Environment Setup](#environment-setup)
+2. [Supabase Configuration](#supabase-configuration)
+3. [Development Setup](#development-setup)
 4. [Production Deployment](#production-deployment)
-5. [Container Deployment](#container-deployment)
-6. [CI/CD Pipeline](#cicd-pipeline)
-7. [Health Checks](#health-checks)
-8. [Monitoring Setup](#monitoring-setup)
-9. [Scaling Considerations](#scaling-considerations)
+5. [Security Checklist](#security-checklist)
+6. [Monitoring and Maintenance](#monitoring-and-maintenance)
+7. [Troubleshooting](#troubleshooting)
 
-## Environment Configuration
+## Environment Setup
 
 ### Required Environment Variables
 
+Create the following environment files for different deployment stages:
+
 #### Core Supabase Configuration
+
 ```bash
 # Supabase Connection
 SUPABASE_URL=https://your-project.supabase.co
@@ -30,6 +31,7 @@ DATABASE_URL=postgresql://user:pass@host:port/db
 ```
 
 #### Authentication Configuration
+
 ```bash
 # Token Settings
 AUTH_TOKEN_EXPIRATION=3600          # 1 hour in seconds
@@ -44,6 +46,7 @@ SESSION_COOKIE_SAMESITE=strict      # CSRF protection
 ```
 
 #### Performance Configuration
+
 ```bash
 # Caching
 CACHE_PROFILE_TTL=300000            # 5 minutes in milliseconds
@@ -57,6 +60,7 @@ DATABASE_POOL_TIMEOUT=30000         # Pool timeout in milliseconds
 ```
 
 #### Analytics and Monitoring
+
 ```bash
 # Analytics Configuration
 ENABLE_ANALYTICS=true               # Enable analytics tracking
@@ -71,6 +75,7 @@ MONITORING_ENDPOINT=/health         # Health check endpoint path
 ```
 
 #### Security Configuration
+
 ```bash
 # CORS Settings
 CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
@@ -87,6 +92,7 @@ HSTS_MAX_AGE=31536000              # HSTS max age (1 year)
 ```
 
 #### Logging Configuration
+
 ```bash
 # Log Levels
 LOG_LEVEL=info                      # info, debug, warn, error
@@ -102,6 +108,7 @@ LOG_FILE_PATH=/var/log/app.log      # Log file path if enabled
 ### Environment-Specific Configurations
 
 #### Development (.env.local)
+
 ```bash
 # Development-specific settings
 NODE_ENV=development
@@ -117,6 +124,7 @@ SUPABASE_ANON_KEY=dev-anon-key
 ```
 
 #### Staging (.env.staging)
+
 ```bash
 # Staging environment
 NODE_ENV=staging
@@ -131,6 +139,7 @@ SUPABASE_ANON_KEY=staging-anon-key
 ```
 
 #### Production (.env.production)
+
 ```bash
 # Production environment
 NODE_ENV=production
@@ -150,37 +159,41 @@ SUPABASE_ANON_KEY=prod-anon-key
 ### Local Development
 
 1. **Install Dependencies**:
+
    ```bash
    # Install all dependencies
    pnpm install
-   
+
    # Verify installation
    pnpm list @supabase/supabase-js
    ```
 
 2. **Environment Setup**:
+
    ```bash
    # Copy environment template
    cp .env.example .env.local
-   
+
    # Edit environment variables
    vim .env.local
    ```
 
 3. **Start Development Server**:
+
    ```bash
    # Start all services
    pnpm dev
-   
+
    # Or start API only
    pnpm dev:backend
    ```
 
 4. **Verify Setup**:
+
    ```bash
    # Check health endpoint
    curl http://localhost:8000/health
-   
+
    # Test authentication
    curl -X POST http://localhost:8000/api/auth/test \
      -H "Content-Type: application/json"
@@ -189,6 +202,7 @@ SUPABASE_ANON_KEY=prod-anon-key
 ### Development Tools
 
 #### Health Check Script
+
 ```bash
 #!/bin/bash
 # scripts/dev-health-check.sh
@@ -226,6 +240,7 @@ echo "Development environment is ready!"
 ### Docker Setup for Staging
 
 #### Dockerfile
+
 ```dockerfile
 # Use official Node.js runtime
 FROM node:18-alpine
@@ -270,6 +285,7 @@ CMD ["pnpm", "start"]
 ```
 
 #### Docker Compose for Staging
+
 ```yaml
 # docker-compose.staging.yml
 version: '3.8'
@@ -278,7 +294,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
       - NODE_ENV=staging
       - SUPABASE_URL=${SUPABASE_URL}
@@ -288,7 +304,7 @@ services:
       - .env.staging
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -297,8 +313,8 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/ssl/certs
@@ -310,35 +326,38 @@ services:
 ### Staging Deployment Process
 
 1. **Build and Test**:
+
    ```bash
    # Build application
    pnpm build
-   
+
    # Run tests
    pnpm test
    pnpm test:integration
-   
+
    # Build Docker image
    docker build -t agentic-workflow-api:staging .
    ```
 
 2. **Deploy to Staging**:
+
    ```bash
    # Deploy with Docker Compose
    docker-compose -f docker-compose.staging.yml up -d
-   
+
    # Wait for services to be ready
    ./scripts/wait-for-services.sh
-   
+
    # Run smoke tests
    ./scripts/staging-smoke-tests.sh
    ```
 
 3. **Verify Deployment**:
+
    ```bash
    # Check service health
    curl https://staging.yourdomain.com/health
-   
+
    # Test authentication flow
    ./scripts/test-auth-flow.sh staging
    ```
@@ -348,6 +367,7 @@ services:
 ### Kubernetes Deployment
 
 #### Deployment Configuration
+
 ```yaml
 # k8s/deployment.yaml
 apiVersion: apps/v1
@@ -367,51 +387,51 @@ spec:
         app: agentic-workflow-api
     spec:
       containers:
-      - name: api
-        image: your-registry/agentic-workflow-api:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: SUPABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: supabase-secrets
-              key: url
-        - name: SUPABASE_ANON_KEY
-          valueFrom:
-            secretKeyRef:
-              name: supabase-secrets
-              key: anon-key
-        - name: SUPABASE_SERVICE_ROLE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: supabase-secrets
-              key: service-role-key
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health/ready
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        lifecycle:
-          preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+        - name: api
+          image: your-registry/agentic-workflow-api:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: url
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: anon-key
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: service-role-key
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '250m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ['/bin/sh', '-c', 'sleep 15']
 ---
 apiVersion: v1
 kind: Service
@@ -428,6 +448,7 @@ spec:
 ```
 
 #### Secret Management
+
 ```yaml
 # k8s/secrets.yaml
 apiVersion: v1
@@ -436,12 +457,13 @@ metadata:
   name: supabase-secrets
 type: Opaque
 stringData:
-  url: "https://your-project.supabase.co"
-  anon-key: "your-anon-key"
-  service-role-key: "your-service-role-key"
+  url: 'https://your-project.supabase.co'
+  anon-key: 'your-anon-key'
+  service-role-key: 'your-service-role-key'
 ```
 
 #### ConfigMap for Configuration
+
 ```yaml
 # k8s/configmap.yaml
 apiVersion: v1
@@ -449,53 +471,56 @@ kind: ConfigMap
 metadata:
   name: app-config
 data:
-  AUTH_TOKEN_EXPIRATION: "3600"
-  AUTH_REFRESH_THRESHOLD: "300"
-  CACHE_MAX_SIZE: "1000"
-  ENABLE_ANALYTICS: "true"
-  LOG_LEVEL: "info"
+  AUTH_TOKEN_EXPIRATION: '3600'
+  AUTH_REFRESH_THRESHOLD: '300'
+  CACHE_MAX_SIZE: '1000'
+  ENABLE_ANALYTICS: 'true'
+  LOG_LEVEL: 'info'
 ```
 
 ### Production Deployment Process
 
 1. **Pre-Deployment Checks**:
+
    ```bash
    # Run all tests
    pnpm test
    pnpm test:integration
    pnpm test:e2e
-   
+
    # Security scan
    pnpm audit
    npm audit
-   
+
    # Build and push Docker image
    docker build -t your-registry/agentic-workflow-api:v1.0.0 .
    docker push your-registry/agentic-workflow-api:v1.0.0
    ```
 
 2. **Deploy to Production**:
+
    ```bash
    # Apply Kubernetes configurations
    kubectl apply -f k8s/secrets.yaml
    kubectl apply -f k8s/configmap.yaml
    kubectl apply -f k8s/deployment.yaml
-   
+
    # Wait for rollout to complete
    kubectl rollout status deployment/agentic-workflow-api
-   
+
    # Verify pods are running
    kubectl get pods -l app=agentic-workflow-api
    ```
 
 3. **Post-Deployment Verification**:
+
    ```bash
    # Check service health
    kubectl exec -it deployment/agentic-workflow-api -- curl http://localhost:8000/health
-   
+
    # Test external access
    curl https://yourdomain.com/health
-   
+
    # Run production smoke tests
    ./scripts/production-smoke-tests.sh
    ```
@@ -570,6 +595,7 @@ CMD ["pnpm", "start"]
 ### Container Security
 
 #### Security Best Practices
+
 ```dockerfile
 # Use specific version tags
 FROM node:18.17.0-alpine
@@ -590,6 +616,7 @@ RUN rm -rf /usr/local/lib/node_modules/npm
 ```
 
 #### Docker Security Scan
+
 ```bash
 # Scan image for vulnerabilities
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
@@ -623,19 +650,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install pnpm
         run: npm install -g pnpm
-      
+
       - name: Install dependencies
         run: pnpm install
-      
+
       - name: Run tests
         run: |
           pnpm test
@@ -643,7 +670,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
-      
+
       - name: Run security audit
         run: pnpm audit
 
@@ -653,14 +680,14 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Log in to Container Registry
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v4
@@ -669,7 +696,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
-      
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -685,18 +712,18 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Configure kubectl
         run: |
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
           export KUBECONFIG=kubeconfig
-      
+
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/agentic-workflow-api \
             api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main-${{ github.sha }}
           kubectl rollout status deployment/agentic-workflow-api
-      
+
       - name: Verify deployment
         run: |
           kubectl get pods -l app=agentic-workflow-api
@@ -706,6 +733,7 @@ jobs:
 ### Deployment Scripts
 
 #### Production Smoke Tests
+
 ```bash
 #!/bin/bash
 # scripts/production-smoke-tests.sh
@@ -754,7 +782,7 @@ router.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: process.env.npm_package_version || '1.0.0'
+    version: process.env.npm_package_version || '1.0.0',
   });
 });
 
@@ -762,28 +790,28 @@ router.get('/health', (req, res) => {
 router.get('/health/ready', async (req, res) => {
   try {
     const adapter = getSupabaseAdapter();
-    
+
     // Test Supabase connection
     const connectionTest = await adapter.testConnection();
-    
+
     // Test analytics monitor
     const healthMetrics = adapter.getSystemHealthMetrics();
-    
+
     res.json({
       status: 'ready',
       checks: {
         supabase: connectionTest.success,
         analytics: !!healthMetrics,
         memory: process.memoryUsage(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(503).json({
       status: 'not ready',
       error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -792,15 +820,15 @@ router.get('/health/ready', async (req, res) => {
 router.get('/health/live', (req, res) => {
   const memUsage = process.memoryUsage();
   const isHealthy = memUsage.heapUsed < memUsage.heapTotal * 0.9;
-  
+
   if (isHealthy) {
     res.json({ status: 'alive', timestamp: new Date().toISOString() });
   } else {
-    res.status(503).json({ 
-      status: 'unhealthy', 
+    res.status(503).json({
+      status: 'unhealthy',
       reason: 'high memory usage',
       memory: memUsage,
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -845,42 +873,45 @@ import prometheus from 'prom-client';
 const httpRequests = new prometheus.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status']
+  labelNames: ['method', 'route', 'status'],
 });
 
 const httpDuration = new prometheus.Histogram({
   name: 'http_request_duration_seconds',
   help: 'HTTP request duration in seconds',
   labelNames: ['method', 'route', 'status'],
-  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10],
 });
 
 const authMetrics = new prometheus.Counter({
   name: 'auth_operations_total',
   help: 'Total authentication operations',
-  labelNames: ['operation', 'success']
+  labelNames: ['operation', 'success'],
 });
 
 // Middleware to collect metrics
 export function metricsMiddleware(req: any, res: any, next: any) {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = (Date.now() - start) / 1000;
-    
+
     httpRequests.inc({
       method: req.method,
       route: req.route?.path || req.path,
-      status: res.statusCode
+      status: res.statusCode,
     });
-    
-    httpDuration.observe({
-      method: req.method,
-      route: req.route?.path || req.path,
-      status: res.statusCode
-    }, duration);
+
+    httpDuration.observe(
+      {
+        method: req.method,
+        route: req.route?.path || req.path,
+        status: res.statusCode,
+      },
+      duration
+    );
   });
-  
+
   next();
 }
 
@@ -908,28 +939,29 @@ const logger = winston.createLogger({
   ),
   defaultMeta: {
     service: 'agentic-workflow-api',
-    version: process.env.npm_package_version || '1.0.0'
+    version: process.env.npm_package_version || '1.0.0',
   },
   transports: [
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    })
-  ]
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+  ],
 });
 
 // Add file transport for production
 if (process.env.NODE_ENV === 'production') {
-  logger.add(new winston.transports.File({
-    filename: 'error.log',
-    level: 'error'
-  }));
-  
-  logger.add(new winston.transports.File({
-    filename: 'combined.log'
-  }));
+  logger.add(
+    new winston.transports.File({
+      filename: 'error.log',
+      level: 'error',
+    })
+  );
+
+  logger.add(
+    new winston.transports.File({
+      filename: 'combined.log',
+    })
+  );
 }
 
 export default logger;
@@ -955,18 +987,18 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
 ```
 
 ### Load Balancing
@@ -982,24 +1014,24 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit: '100'
+    nginx.ingress.kubernetes.io/rate-limit-window: '1m'
 spec:
   tls:
-  - hosts:
-    - yourdomain.com
-    secretName: api-tls
+    - hosts:
+        - yourdomain.com
+      secretName: api-tls
   rules:
-  - host: yourdomain.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: agentic-workflow-api-service
-            port:
-              number: 80
+    - host: yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: agentic-workflow-api-service
+                port:
+                  number: 80
 ```
 
 ### Performance Optimization
@@ -1043,8 +1075,8 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - yourdomain.com
-  - api.yourdomain.com
+    - yourdomain.com
+    - api.yourdomain.com
 ```
 
 ### Security Headers
@@ -1054,26 +1086,29 @@ spec:
 import helmet from 'helmet';
 
 export function setupSecurity(app: any) {
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://*.supabase.co"]
-      }
-    },
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true
-    }
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'", 'https://*.supabase.co'],
+        },
+      },
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      },
+    })
+  );
 }
 ```
 
 For additional deployment information, refer to:
+
 - [Migration Guide](./MIGRATION_GUIDE.md)
 - [Security Best Practices](./SECURITY.md)
 - [Troubleshooting Guide](./TROUBLESHOOTING.md)

@@ -286,13 +286,13 @@ jobs:
           TEST_RESULT="${{ needs.test.result }}"
           BUILD_RESULT="${{ needs.build.result }}"
           SECURITY_RESULT="${{ needs.security-audit.result }}"
-          
+
           echo "Job results:"
           echo "  Lint & Type Check: $LINT_RESULT"
           echo "  Test: $TEST_RESULT"
           echo "  Build: $BUILD_RESULT"
           echo "  Security Audit: $SECURITY_RESULT"
-          
+
           # Accept success or skipped as passing states
           if [[ "$LINT_RESULT" != "success" && "$LINT_RESULT" != "skipped" ]] || \
              [[ "$TEST_RESULT" != "success" && "$TEST_RESULT" != "skipped" ]] || \

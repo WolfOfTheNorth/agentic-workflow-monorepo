@@ -3,7 +3,14 @@ export * from './client';
 export * from './types';
 export * from './hooks';
 export * from './config';
-export * from './adapters';
+export {
+  SupabaseAuthAdapter,
+  SessionManager,
+  PasswordValidator,
+  SecureTokenStorage,
+  EnhancedTokenStorage,
+} from './adapters';
+export type { SupabaseRetryConfig } from './adapters';
 
 // Re-export commonly used shared types
 export type {

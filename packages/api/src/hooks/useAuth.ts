@@ -1,62 +1,83 @@
-import { AsyncState } from '@agentic-workflow/shared';
-import { useCallback, useState, useEffect, useRef } from 'react';
-import { getDefaultApiClient } from '../client';
 import {
-  LoginRequest,
-  LoginResponse,
-  ProfileResponse,
-  RegisterRequest,
-  RegisterResponse,
-} from '../types/auth';
+  AsyncState,
+  AuthUser,
+  AuthSession,
+  LoginCredentials,
+  SignupData,
+  AuthResponse,
+} from '@agentic-workflow/shared';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import { AuthClient, createAuthClientWithDefaults } from '../clients/auth-client';
+import { getDefaultApiClient } from '../client';
+import { LoginResponse, ProfileResponse, RegisterResponse } from '../types/auth';
 
 export interface UseAuthReturn {
-  // Existing interface (maintained for backward compatibility)
+  // Core auth state
+  user: AuthUser | null;
+  session: AuthSession | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isInitializing: boolean;
+  error: string | null;
+
+  // Auth operations
+  login: (credentials: LoginCredentials) => Promise<AuthResponse>;
+  signup: (userData: SignupData) => Promise<AuthResponse>;
+  logout: () => Promise<AuthResponse>;
+  refreshSession: () => Promise<AuthResponse>;
+
+  // Profile operations
+  updateProfile: (updates: Partial<AuthUser>) => Promise<AuthResponse>;
+  updatePassword: (newPassword: string) => Promise<AuthResponse>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<AuthResponse>;
+
+  // Session management
+  hasValidSession: boolean;
+  isSessionExpired: boolean;
+  isSessionExpiring: boolean;
+  getSessionTimeRemaining: () => number;
+  validateSession: () => Promise<{ isValid: boolean; user?: AuthUser; error?: any }>;
+
+  // Service health and monitoring
+  getSessionStatistics: () => any;
+  checkHealth: () => Promise<any>;
+  addAuthStateListener: (event: string, callback: (data: any) => void) => () => void;
+
+  // Utility functions
+  clearState: () => void;
+  clearError: () => void;
+  isRememberMeEnabled: () => boolean;
+
+  // Validation methods
+  validateEmail: (email: string) => any;
+  validatePassword: (password: string) => any;
+  validateName: (name: string) => any;
+  generateCSRFToken: () => string;
+  validateCSRFToken: (token: string) => boolean;
+  checkRateLimit: (ip?: string, email?: string) => any;
+
+  // Legacy compatibility (maintained for existing code)
   loginState: AsyncState<LoginResponse>;
   registerState: AsyncState<RegisterResponse>;
   logoutState: AsyncState<boolean>;
   profileState: AsyncState<ProfileResponse>;
-  login: (credentials: LoginRequest) => Promise<void>;
-  register: (userData: RegisterRequest) => Promise<void>;
-  logout: () => Promise<void>;
-  getProfile: () => Promise<void>;
-  updateProfile: (profileData: Partial<ProfileResponse>) => Promise<void>;
-  clearState: () => void;
-
-  // Enhanced features (new additions)
-  isAuthenticated: boolean;
-  isInitializing: boolean;
-  hasValidSession: boolean;
   sessionInfo: {
     expiresAt?: number;
     lastRefreshed?: number;
     sessionId?: string;
   } | null;
-  initializeSession: () => Promise<boolean>;
-  checkServiceHealth: () => Promise<{
-    available: boolean;
-    recommendedStrategy: string;
-    reason: string;
-  }>;
-
-  // Enhanced authentication state management (Task 15)
-  sessionRestoreState: AsyncState<boolean>;
-  isSessionExpired: boolean;
-  isSessionExpiring: boolean; // Within 5 minutes of expiration
-  refreshTokenState: AsyncState<boolean>;
-  authError: {
-    message: string;
-    code: string;
-    recoverable: boolean;
-    lastOccurred: number;
-  } | null;
-  retryAuthentication: () => Promise<void>;
-  refreshSession: () => Promise<void>;
-  clearAuthError: () => void;
-  getSessionTimeRemaining: () => number; // Returns seconds until expiration
 }
 
 export function useAuth(): UseAuthReturn {
-  // Existing state (maintained for backward compatibility)
+  // Core authentication state
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Legacy state for backward compatibility
   const [loginState, setLoginState] = useState<AsyncState<LoginResponse>>({
     data: null,
     status: 'idle',
@@ -81,747 +102,611 @@ export function useAuth(): UseAuthReturn {
     error: null,
   });
 
-  // Enhanced state for session management
-  const [isInitializing, setIsInitializing] = useState(true);
   const [sessionInfo, setSessionInfo] = useState<{
     expiresAt?: number;
     lastRefreshed?: number;
     sessionId?: string;
   } | null>(null);
 
-  // Enhanced authentication state management (Task 15)
-  const [sessionRestoreState, setSessionRestoreState] = useState<AsyncState<boolean>>({
-    data: null,
-    status: 'idle',
-    error: null,
-  });
-
-  const [refreshTokenState, setRefreshTokenState] = useState<AsyncState<boolean>>({
-    data: null,
-    status: 'idle',
-    error: null,
-  });
-
-  const [authError, setAuthError] = useState<{
-    message: string;
-    code: string;
-    recoverable: boolean;
-    lastOccurred: number;
-  } | null>(null);
-
-  // Refs for cleanup and preventing memory leaks
+  // Refs for cleanup and state management
+  const authClientRef = useRef<AuthClient | null>(null);
   const isMountedRef = useRef(true);
-  const initializationRef = useRef<Promise<boolean> | null>(null);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshSessionRef = useRef<(() => Promise<void>) | null>(null);
-  const scheduleTokenRefreshRef = useRef<(() => void) | null>(null);
-  const retryCountRef = useRef(0);
-  const maxRetryAttempts = 3;
+  const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Computed state values
-  const isAuthenticated = loginState.data !== null || registerState.data !== null;
+  // Computed values
+  const isAuthenticated = user !== null && session !== null;
   const hasValidSession =
-    !!sessionInfo && !!sessionInfo.expiresAt && sessionInfo.expiresAt > Date.now();
-
-  // Enhanced computed state values (Task 15)
-  const isSessionExpired =
-    !!sessionInfo && !!sessionInfo.expiresAt && sessionInfo.expiresAt <= Date.now();
+    session !== null && (!session.expiresAt || session.expiresAt > Date.now());
+  const isSessionExpired = session !== null && session.expiresAt && session.expiresAt <= Date.now();
   const isSessionExpiring =
-    !!sessionInfo &&
-    !!sessionInfo.expiresAt &&
-    sessionInfo.expiresAt - Date.now() <= 300000 && // 5 minutes
-    sessionInfo.expiresAt - Date.now() > 0;
+    session !== null &&
+    session.expiresAt &&
+    session.expiresAt - Date.now() <= 300000 && // 5 minutes
+    session.expiresAt - Date.now() > 0;
 
-  const getSessionTimeRemaining = useCallback((): number => {
-    if (!sessionInfo?.expiresAt) return 0;
-    return Math.max(0, Math.floor((sessionInfo.expiresAt - Date.now()) / 1000));
-  }, [sessionInfo]);
-
-  // Enhanced session initialization function (Task 15)
-  const initializeSession = useCallback(async (): Promise<boolean> => {
-    if (!isMountedRef.current) return false;
-
-    // Prevent multiple concurrent initializations
-    if (initializationRef.current) {
-      return initializationRef.current;
+  // Initialize AuthClient
+  const initializeAuthClient = useCallback(async () => {
+    if (authClientRef.current) {
+      return authClientRef.current;
     }
 
-    const initialization = (async () => {
+    try {
+      const apiClient = getDefaultApiClient();
+      const authClient = await createAuthClientWithDefaults(apiClient);
+      authClientRef.current = authClient;
+      return authClient;
+    } catch (error) {
+      console.error('Failed to initialize AuthClient:', error);
+      throw error;
+    }
+  }, []);
+
+  // Update state from AuthClient
+  const updateStateFromAuthClient = useCallback((authClient: AuthClient) => {
+    const currentUser = authClient.getCurrentUser();
+    const currentSession = authClient.getCurrentSession();
+
+    setUser(currentUser);
+    setSession(currentSession);
+
+    // Update legacy session info
+    if (currentSession) {
+      setSessionInfo({
+        expiresAt: currentSession.expiresAt,
+        lastRefreshed: Date.now(),
+        sessionId: currentSession.id,
+      });
+
+      // Update legacy profile state for compatibility
+      if (currentUser) {
+        setProfileState({
+          data: currentUser as unknown as ProfileResponse,
+          status: 'success',
+          error: null,
+        });
+      }
+    } else {
+      setSessionInfo(null);
+      setProfileState({
+        data: null,
+        status: 'idle',
+        error: null,
+      });
+    }
+  }, []);
+
+  // Session time remaining calculation
+  const getSessionTimeRemaining = useCallback((): number => {
+    if (!session?.expiresAt) return 0;
+    return Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000));
+  }, [session]);
+
+  // Check if remember me is enabled
+  const isRememberMeEnabled = useCallback((): boolean => {
+    const authClient = authClientRef.current;
+    if (!authClient) return false;
+    // This would typically check the token storage
+    return (
+      typeof localStorage !== 'undefined' && localStorage.getItem('auth_remember_me') === 'true'
+    );
+  }, []);
+
+  // Auth operations
+  const login = useCallback(
+    async (credentials: LoginCredentials): Promise<AuthResponse> => {
+      if (!isMountedRef.current)
+        return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
+
+      setIsLoading(true);
+      setError(null);
+      setLoginState({ data: null, status: 'loading', error: null });
+
       try {
-        setIsInitializing(true);
-        setSessionRestoreState({ data: null, status: 'loading', error: null });
+        const authClient = await initializeAuthClient();
 
-        const client = getDefaultApiClient();
-        const restored = await client.initializeSession();
+        // Gather client information for security checks
+        const clientInfo = {
+          userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+          origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+          // IP would typically be provided by server-side middleware
+        };
 
-        if (restored && isMountedRef.current) {
-          // Get current session info
-          const currentSession = client.getCurrentSession();
-          if (currentSession) {
-            setSessionInfo({
-              expiresAt: currentSession.expires_at,
-              lastRefreshed: currentSession.last_refreshed,
-              sessionId: currentSession.session_id,
-            });
+        const result = await authClient.login(credentials, clientInfo);
 
-            // Schedule automatic token refresh
-            setTimeout(() => {
-              scheduleTokenRefreshRef.current?.();
-            }, 100); // Small delay to ensure state is updated
+        if (isMountedRef.current) {
+          if (result.success) {
+            updateStateFromAuthClient(authClient);
 
-            // Try to get user profile if we have a valid session
-            try {
-              const profileResponse = await client.auth.getProfile();
-              if (isMountedRef.current) {
-                setProfileState({
-                  data: profileResponse.data,
-                  status: 'success',
-                  error: null,
-                });
-
-                // Also set login state to maintain compatibility
-                setLoginState({
-                  data: {
-                    access_token: currentSession.access_token,
-                    refresh_token: currentSession.refresh_token,
-                    expires_in: Math.floor((currentSession.expires_at - Date.now()) / 1000),
-                    user: profileResponse.data,
-                  },
-                  status: 'success',
-                  error: null,
-                });
-
-                // Clear any previous auth errors on successful restoration
-                setAuthError(null);
-                retryCountRef.current = 0;
-
-                setSessionRestoreState({ data: true, status: 'success', error: null });
-                console.info('[useAuth] Session restored successfully on initialization');
-              }
-            } catch (profileError) {
-              const errorMsg =
-                profileError instanceof Error ? profileError.message : 'Profile fetch failed';
-              console.warn(
-                '[useAuth] Failed to restore profile during session initialization:',
-                profileError
-              );
-
-              // Set auth error for profile fetch failure
-              setAuthError({
-                message: 'Session restored but profile could not be loaded. Please try refreshing.',
-                code: 'PROFILE_RESTORE_FAILED',
-                recoverable: true,
-                lastOccurred: Date.now(),
+            // Update legacy login state
+            if (result.user && result.session) {
+              setLoginState({
+                data: {
+                  access_token: result.session.accessToken,
+                  refresh_token: result.session.refreshToken,
+                  expires_in: Math.floor((result.session.expiresAt - Date.now()) / 1000),
+                  user: result.user as unknown as any,
+                },
+                status: 'success',
+                error: null,
               });
-
-              setSessionRestoreState({ data: false, status: 'error', error: errorMsg });
             }
           } else {
-            setSessionRestoreState({ data: false, status: 'success', error: null });
+            const errorMsg = result.error?.message || 'Login failed';
+            setError(errorMsg);
+            setLoginState({ data: null, status: 'error', error: errorMsg });
           }
-        } else {
-          setSessionRestoreState({ data: false, status: 'success', error: null });
         }
 
-        return restored;
+        return result;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Session initialization failed';
-        console.error('[useAuth] Session initialization failed:', error);
-
+        const errorMsg = error instanceof Error ? error.message : 'Login failed';
         if (isMountedRef.current) {
-          setAuthError({
-            message: 'Failed to restore your session. Please log in again.',
-            code: 'SESSION_INIT_FAILED',
-            recoverable: true,
-            lastOccurred: Date.now(),
-          });
-
-          setSessionRestoreState({ data: false, status: 'error', error: errorMsg });
+          setError(errorMsg);
+          setLoginState({ data: null, status: 'error', error: errorMsg });
         }
-
-        return false;
+        return { success: false, error: { code: 'LOGIN_ERROR', message: errorMsg } };
       } finally {
         if (isMountedRef.current) {
-          setIsInitializing(false);
+          setIsLoading(false);
         }
-        initializationRef.current = null;
       }
-    })();
+    },
+    [initializeAuthClient, updateStateFromAuthClient]
+  );
 
-    initializationRef.current = initialization;
-    return initialization;
-  }, []);
+  const signup = useCallback(
+    async (userData: SignupData): Promise<AuthResponse> => {
+      if (!isMountedRef.current)
+        return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
 
-  // Service health check function
-  const checkServiceHealth = useCallback(async () => {
-    try {
-      const client = getDefaultApiClient();
-      return await client.auth.checkServiceHealth();
-    } catch (error) {
-      return {
-        available: false,
-        recommendedStrategy: 'degraded_mode',
-        reason: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  }, []);
+      setIsLoading(true);
+      setError(null);
+      setRegisterState({ data: null, status: 'loading', error: null });
 
-  // Enhanced authentication state management functions (Task 15)
+      try {
+        const authClient = await initializeAuthClient();
 
-  /**
-   * Schedule automatic token refresh based on expiration time
-   * Note: This will be updated after refreshSession is defined
-   */
-  const scheduleTokenRefresh = useCallback(() => {
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = null;
-    }
+        // Gather client information for security checks
+        const clientInfo = {
+          userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+          origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+          // IP would typically be provided by server-side middleware
+        };
 
-    if (!sessionInfo?.expiresAt) return;
+        const result = await authClient.signup(userData, clientInfo);
 
-    const timeUntilExpiry = sessionInfo.expiresAt - Date.now();
-    const refreshTime = Math.max(0, timeUntilExpiry - 300000); // Refresh 5 minutes before expiry
+        if (isMountedRef.current) {
+          if (result.success) {
+            updateStateFromAuthClient(authClient);
 
-    if (refreshTime > 0) {
-      refreshTimeoutRef.current = setTimeout(() => {
-        if (isMountedRef.current && hasValidSession) {
-          console.info('[useAuth] Automatically refreshing session before expiration');
-          // Call refreshSession through a ref to avoid circular dependency
-          refreshSessionRef.current?.().catch(error => {
-            console.error('[useAuth] Automatic session refresh failed:', error);
-          });
+            // Update legacy register state
+            if (result.user) {
+              setRegisterState({
+                data: {
+                  user: result.user as unknown as any,
+                  access_token: result.session?.accessToken || '',
+                  refresh_token: result.session?.refreshToken || '',
+                  expires_in: result.session
+                    ? Math.floor((result.session.expiresAt - Date.now()) / 1000)
+                    : 0,
+                },
+                status: 'success',
+                error: null,
+              });
+            }
+          } else {
+            const errorMsg = result.error?.message || 'Signup failed';
+            setError(errorMsg);
+            setRegisterState({ data: null, status: 'error', error: errorMsg });
+          }
         }
-      }, refreshTime);
 
-      console.debug(
-        `[useAuth] Token refresh scheduled in ${Math.floor(refreshTime / 1000 / 60)} minutes`
-      );
-    }
-  }, [sessionInfo, hasValidSession]);
-
-  // Set the ref to the scheduleTokenRefresh function
-  scheduleTokenRefreshRef.current = scheduleTokenRefresh;
-
-  /**
-   * Refresh the current session and update tokens
-   */
-  const refreshSession = useCallback(async () => {
-    if (!isMountedRef.current || !sessionInfo?.sessionId) return;
-
-    setRefreshTokenState({ data: null, status: 'loading', error: null });
-
-    try {
-      const client = getDefaultApiClient();
-      // Use the refreshToken method with current session data
-      const refreshRequest = {
-        refresh_token: sessionInfo.sessionId, // Using sessionId as refresh token identifier
-      };
-      const refreshResponse = await client.auth.refreshToken(refreshRequest);
-
-      if (refreshResponse.data && isMountedRef.current) {
-        const currentSession = client.getCurrentSession();
-        if (currentSession) {
-          setSessionInfo({
-            expiresAt: currentSession.expires_at,
-            lastRefreshed: currentSession.last_refreshed,
-            sessionId: currentSession.session_id,
-          });
-
-          // Clear any existing auth errors on successful refresh
-          setAuthError(null);
-          retryCountRef.current = 0;
-
-          setRefreshTokenState({ data: true, status: 'success', error: null });
-          console.info('[useAuth] Session refreshed successfully');
+        return result;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Signup failed';
+        if (isMountedRef.current) {
+          setError(errorMsg);
+          setRegisterState({ data: null, status: 'error', error: errorMsg });
         }
-      } else {
-        throw new Error('Failed to refresh session - invalid response');
+        return { success: false, error: { code: 'SIGNUP_ERROR', message: errorMsg } };
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
-    } catch (error) {
-      if (!isMountedRef.current) return;
+    },
+    [initializeAuthClient, updateStateFromAuthClient]
+  );
 
-      const errorMsg = error instanceof Error ? error.message : 'Session refresh failed';
-      setRefreshTokenState({ data: null, status: 'error', error: errorMsg });
+  const logout = useCallback(async (): Promise<AuthResponse> => {
+    if (!isMountedRef.current)
+      return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
 
-      // Set auth error with recovery information
-      setAuthError({
-        message: 'Session has expired. Please log in again.',
-        code: 'SESSION_REFRESH_FAILED',
-        recoverable: true,
-        lastOccurred: Date.now(),
-      });
-
-      console.error('[useAuth] Session refresh failed:', error);
-
-      // Clear session if refresh fails
-      setSessionInfo(null);
-      setLoginState({ data: null, status: 'idle', error: null });
-      setProfileState({ data: null, status: 'idle', error: null });
-
-      const client = getDefaultApiClient();
-      client.setAuthToken(null);
-    }
-  }, [sessionInfo]);
-
-  // Set the ref to the refreshSession function
-  refreshSessionRef.current = refreshSession;
-
-  /**
-   * Retry authentication after an error
-   */
-  const retryAuthentication = useCallback(async () => {
-    if (!isMountedRef.current || retryCountRef.current >= maxRetryAttempts) {
-      setAuthError(_prevError => ({
-        message: 'Maximum retry attempts reached. Please refresh the page or log in again.',
-        code: 'MAX_RETRY_REACHED',
-        recoverable: false,
-        lastOccurred: Date.now(),
-      }));
-      return;
-    }
-
-    retryCountRef.current++;
-
-    try {
-      setSessionRestoreState({ data: null, status: 'loading', error: null });
-
-      // Attempt to restore session
-      const restored = await initializeSession();
-
-      if (restored && isMountedRef.current) {
-        setAuthError(null);
-        retryCountRef.current = 0;
-        setSessionRestoreState({ data: true, status: 'success', error: null });
-        console.info('[useAuth] Authentication retry successful');
-      } else {
-        throw new Error('Session restoration failed during retry');
-      }
-    } catch (error) {
-      if (!isMountedRef.current) return;
-
-      const errorMsg = error instanceof Error ? error.message : 'Authentication retry failed';
-      setSessionRestoreState({ data: null, status: 'error', error: errorMsg });
-
-      // Update auth error with retry information
-      setAuthError(_prevError => ({
-        message: `Authentication failed (attempt ${retryCountRef.current}/${maxRetryAttempts}). ${errorMsg}`,
-        code: 'AUTH_RETRY_FAILED',
-        recoverable: retryCountRef.current < maxRetryAttempts,
-        lastOccurred: Date.now(),
-      }));
-
-      console.warn('[useAuth] Authentication retry failed:', error);
-    }
-  }, [initializeSession]);
-
-  /**
-   * Clear authentication error state
-   */
-  const clearAuthError = useCallback(() => {
-    setAuthError(null);
-    retryCountRef.current = 0;
-  }, []);
-
-  const login = useCallback(async (credentials: LoginRequest) => {
-    if (!isMountedRef.current) return;
-
-    setLoginState({ data: null, status: 'loading', error: null });
-    // Clear any existing auth errors
-    setAuthError(null);
-
-    try {
-      const client = getDefaultApiClient();
-      const response = await client.auth.login(credentials);
-
-      if (!isMountedRef.current) return;
-
-      // Set the auth token for future requests
-      client.setAuthToken(response.data.access_token);
-
-      // Update session info
-      const currentSession = client.getCurrentSession();
-      if (currentSession) {
-        setSessionInfo({
-          expiresAt: currentSession.expires_at,
-          lastRefreshed: currentSession.last_refreshed,
-          sessionId: currentSession.session_id,
-        });
-
-        // Schedule automatic token refresh for new session
-        setTimeout(() => {
-          scheduleTokenRefreshRef.current?.();
-        }, 100); // Small delay to ensure state is updated
-      }
-
-      // Clear retry count on successful login
-      retryCountRef.current = 0;
-
-      setLoginState({ data: response.data, status: 'success', error: null });
-
-      // Also update profile state for consistency
-      setProfileState({
-        data: response.data.user,
-        status: 'success',
-        error: null,
-      });
-
-      console.info('[useAuth] Login successful, session established');
-    } catch (error) {
-      if (!isMountedRef.current) return;
-
-      const errorMsg =
-        typeof error === 'object' &&
-        error !== null &&
-        'message' in error &&
-        typeof (error as { message?: unknown }).message === 'string'
-          ? (error as { message: string }).message
-          : String(error);
-
-      setLoginState({ data: null, status: 'error', error: errorMsg });
-
-      // Set auth error for login failure
-      setAuthError({
-        message: errorMsg,
-        code: 'LOGIN_FAILED',
-        recoverable: true,
-        lastOccurred: Date.now(),
-      });
-
-      throw error;
-    }
-  }, []);
-
-  const register = useCallback(async (userData: RegisterRequest) => {
-    if (!isMountedRef.current) return;
-
-    setRegisterState({ data: null, status: 'loading', error: null });
-    // Clear any existing auth errors
-    setAuthError(null);
-
-    try {
-      const client = getDefaultApiClient();
-      const response = await client.auth.register(userData);
-
-      if (!isMountedRef.current) return;
-
-      // Set the auth token for future requests
-      client.setAuthToken(response.data.access_token);
-
-      // Update session info
-      const currentSession = client.getCurrentSession();
-      if (currentSession) {
-        setSessionInfo({
-          expiresAt: currentSession.expires_at,
-          lastRefreshed: currentSession.last_refreshed,
-          sessionId: currentSession.session_id,
-        });
-
-        // Schedule automatic token refresh for new session
-        setTimeout(() => {
-          scheduleTokenRefreshRef.current?.();
-        }, 100); // Small delay to ensure state is updated
-      }
-
-      // Clear retry count on successful registration
-      retryCountRef.current = 0;
-
-      setRegisterState({ data: response.data, status: 'success', error: null });
-
-      // Also update profile state for consistency
-      setProfileState({
-        data: response.data.user,
-        status: 'success',
-        error: null,
-      });
-
-      console.info('[useAuth] Registration successful, session established');
-    } catch (error) {
-      if (!isMountedRef.current) return;
-
-      const errorMsg =
-        typeof error === 'object' &&
-        error !== null &&
-        'message' in error &&
-        typeof (error as { message?: unknown }).message === 'string'
-          ? (error as { message: string }).message
-          : String(error);
-
-      setRegisterState({ data: null, status: 'error', error: errorMsg });
-
-      // Set auth error for registration failure
-      setAuthError({
-        message: errorMsg,
-        code: 'REGISTRATION_FAILED',
-        recoverable: true,
-        lastOccurred: Date.now(),
-      });
-
-      throw error;
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    if (!isMountedRef.current) return;
-
+    setIsLoading(true);
     setLogoutState({ data: null, status: 'loading', error: null });
 
     try {
-      const client = getDefaultApiClient();
-      await client.auth.logout();
+      const authClient = authClientRef.current;
+      if (authClient) {
+        const result = await authClient.logout();
 
-      if (!isMountedRef.current) return;
+        if (isMountedRef.current) {
+          // Clear all state regardless of logout result
+          setUser(null);
+          setSession(null);
+          setSessionInfo(null);
+          setError(null);
 
-      // Clear scheduled token refresh
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-        refreshTimeoutRef.current = null;
+          // Clear legacy states
+          setLoginState({ data: null, status: 'idle', error: null });
+          setRegisterState({ data: null, status: 'idle', error: null });
+          setProfileState({ data: null, status: 'idle', error: null });
+          setLogoutState({ data: true, status: 'success', error: null });
+        }
+
+        return result;
+      } else {
+        // Clear state even if no auth client
+        if (isMountedRef.current) {
+          setUser(null);
+          setSession(null);
+          setSessionInfo(null);
+          setError(null);
+          setLogoutState({ data: true, status: 'success', error: null });
+        }
+        return { success: true, message: 'Logged out locally' };
       }
-
-      // Clear the auth token
-      client.setAuthToken(null);
-
-      // Clear all session and auth state
-      setSessionInfo(null);
-      setAuthError(null);
-      retryCountRef.current = 0;
-
-      // Reset all authentication states
-      setLogoutState({ data: true, status: 'success', error: null });
-      setProfileState({ data: null, status: 'idle', error: null });
-      setLoginState({ data: null, status: 'idle', error: null });
-      setRegisterState({ data: null, status: 'idle', error: null });
-      setSessionRestoreState({ data: null, status: 'idle', error: null });
-      setRefreshTokenState({ data: null, status: 'idle', error: null });
-
-      console.info('[useAuth] Logout successful, all state cleared');
     } catch (error) {
-      if (!isMountedRef.current) return;
+      const errorMsg = error instanceof Error ? error.message : 'Logout failed';
+      if (isMountedRef.current) {
+        setError(errorMsg);
+        setLogoutState({ data: null, status: 'error', error: errorMsg });
 
-      const errorMsg =
-        typeof error === 'object' && error !== null && 'message' in error
-          ? (error as any).message
-          : String(error);
-      setLogoutState({ data: null, status: 'error', error: errorMsg });
-
-      // Set auth error for logout failure, but still clear local state
-      setAuthError({
-        message: 'Logout request failed, but local session has been cleared.',
-        code: 'LOGOUT_FAILED',
-        recoverable: false,
-        lastOccurred: Date.now(),
-      });
-
-      // Clear local state even if logout request failed
-      setSessionInfo(null);
-      setProfileState({ data: null, status: 'idle', error: null });
-      setLoginState({ data: null, status: 'idle', error: null });
-      setRegisterState({ data: null, status: 'idle', error: null });
-
-      throw error;
+        // Still clear local state on logout error
+        setUser(null);
+        setSession(null);
+        setSessionInfo(null);
+      }
+      return { success: false, error: { code: 'LOGOUT_ERROR', message: errorMsg } };
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
-  const getProfile = useCallback(async () => {
-    setProfileState({ data: profileState.data, status: 'loading', error: null });
+  const refreshSession = useCallback(async (): Promise<AuthResponse> => {
+    if (!isMountedRef.current)
+      return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
+
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      return {
+        success: false,
+        error: { code: 'NO_AUTH_CLIENT', message: 'Auth client not initialized' },
+      };
+    }
 
     try {
-      const client = getDefaultApiClient();
-      const response = await client.auth.getProfile();
+      const result = await authClient.refreshSession();
 
-      setProfileState({ data: response.data, status: 'success', error: null });
+      if (isMountedRef.current && result.success) {
+        updateStateFromAuthClient(authClient);
+      }
+
+      return result;
     } catch (error) {
-      const errorMsg =
-        typeof error === 'object' && error !== null && 'message' in error
-          ? (error as any).message
-          : String(error);
-      setProfileState({ data: null, status: 'error', error: errorMsg });
-      throw error;
+      const errorMsg = error instanceof Error ? error.message : 'Session refresh failed';
+      return { success: false, error: { code: 'REFRESH_ERROR', message: errorMsg } };
     }
-  }, [profileState.data]);
+  }, [updateStateFromAuthClient]);
 
+  // Profile operations
   const updateProfile = useCallback(
-    async (profileData: Partial<ProfileResponse>) => {
-      setProfileState({ data: profileState.data, status: 'loading', error: null });
+    async (updates: Partial<AuthUser>): Promise<AuthResponse> => {
+      if (!isMountedRef.current)
+        return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
 
+      const authClient = authClientRef.current;
+      if (!authClient) {
+        return {
+          success: false,
+          error: { code: 'NO_AUTH_CLIENT', message: 'Auth client not initialized' },
+        };
+      }
+
+      setIsLoading(true);
       try {
-        const client = getDefaultApiClient();
-        const response = await client.auth.updateProfile(profileData);
+        const result = await authClient.updateProfile(updates);
 
-        setProfileState({ data: response.data, status: 'success', error: null });
+        if (isMountedRef.current && result.success) {
+          updateStateFromAuthClient(authClient);
+        }
+
+        return result;
       } catch (error) {
-        const errorMsg =
-          typeof error === 'object' && error !== null && 'message' in error
-            ? (error as any).message
-            : String(error);
-        setProfileState({ data: profileState.data, status: 'error', error: errorMsg });
-        throw error;
+        const errorMsg = error instanceof Error ? error.message : 'Profile update failed';
+        return { success: false, error: { code: 'PROFILE_UPDATE_ERROR', message: errorMsg } };
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     },
-    [profileState.data]
+    [updateStateFromAuthClient]
   );
 
-  const clearState = useCallback(() => {
-    // Clear scheduled token refresh
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = null;
+  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResponse> => {
+    if (!isMountedRef.current)
+      return { success: false, error: { code: 'UNMOUNTED', message: 'Component unmounted' } };
+
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      return {
+        success: false,
+        error: { code: 'NO_AUTH_CLIENT', message: 'Auth client not initialized' },
+      };
     }
 
-    // Clear all authentication states
+    setIsLoading(true);
+    try {
+      const result = await authClient.updatePassword(newPassword);
+      return result;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Password update failed';
+      return { success: false, error: { code: 'PASSWORD_UPDATE_ERROR', message: errorMsg } };
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (email: string): Promise<void> => {
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      throw new Error('Auth client not initialized');
+    }
+
+    await authClient.resetPassword(email);
+  }, []);
+
+  const verifyEmail = useCallback(async (token: string): Promise<AuthResponse> => {
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      return {
+        success: false,
+        error: { code: 'NO_AUTH_CLIENT', message: 'Auth client not initialized' },
+      };
+    }
+
+    try {
+      const result = await authClient.verifyEmail(token);
+      return result;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Email verification failed';
+      return { success: false, error: { code: 'EMAIL_VERIFY_ERROR', message: errorMsg } };
+    }
+  }, []);
+
+  // Session management
+  const validateSession = useCallback(async () => {
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      return { isValid: false, error: 'Auth client not initialized' };
+    }
+
+    try {
+      return await authClient.validateSession();
+    } catch (error) {
+      return {
+        isValid: false,
+        error: error instanceof Error ? error.message : 'Session validation failed',
+      };
+    }
+  }, []);
+
+  // Service health and monitoring
+  const getSessionStatistics = useCallback(() => {
+    const authClient = authClientRef.current;
+    return authClient ? authClient.getSessionStatistics() : null;
+  }, []);
+
+  const checkHealth = useCallback(async () => {
+    const authClient = authClientRef.current;
+    return authClient
+      ? await authClient.checkHealth()
+      : { healthy: false, error: 'Auth client not initialized' };
+  }, []);
+
+  const addAuthStateListener = useCallback((event: string, callback: (data: any) => void) => {
+    const authClient = authClientRef.current;
+    return authClient ? authClient.addAuthStateListener(event, callback) : () => {};
+  }, []);
+
+  // Utility functions
+  const clearState = useCallback(() => {
+    setUser(null);
+    setSession(null);
+    setSessionInfo(null);
+    setError(null);
+    setIsLoading(false);
+
+    // Clear legacy states
     setLoginState({ data: null, status: 'idle', error: null });
     setRegisterState({ data: null, status: 'idle', error: null });
     setLogoutState({ data: null, status: 'idle', error: null });
     setProfileState({ data: null, status: 'idle', error: null });
-
-    // Clear enhanced state management (Task 15)
-    setSessionInfo(null);
-    setSessionRestoreState({ data: null, status: 'idle', error: null });
-    setRefreshTokenState({ data: null, status: 'idle', error: null });
-    setAuthError(null);
-    setIsInitializing(false);
-
-    // Reset retry counter
-    retryCountRef.current = 0;
-
-    console.info('[useAuth] All state cleared');
   }, []);
 
-  // Enhanced initialization and cleanup effect (Task 15)
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Validation methods
+  const validateEmail = useCallback((email: string) => {
+    const authClient = authClientRef.current;
+    return authClient
+      ? authClient.validateEmail(email)
+      : { isValid: false, errors: ['Auth client not initialized'] };
+  }, []);
+
+  const validatePassword = useCallback((password: string) => {
+    const authClient = authClientRef.current;
+    return authClient
+      ? authClient.validatePassword(password)
+      : { isValid: false, errors: ['Auth client not initialized'] };
+  }, []);
+
+  const validateName = useCallback((name: string) => {
+    const authClient = authClientRef.current;
+    return authClient
+      ? authClient.validateName(name)
+      : { isValid: false, errors: ['Auth client not initialized'] };
+  }, []);
+
+  const generateCSRFToken = useCallback((): string => {
+    const authClient = authClientRef.current;
+    return authClient ? authClient.generateCSRFToken() : '';
+  }, []);
+
+  const validateCSRFToken = useCallback((token: string): boolean => {
+    const authClient = authClientRef.current;
+    return authClient ? authClient.validateCSRFTokenFromService(token) : false;
+  }, []);
+
+  const checkRateLimit = useCallback((ip?: string, email?: string) => {
+    const authClient = authClientRef.current;
+    if (!authClient) {
+      return { allowed: true, remainingAttempts: 0, resetTime: 0, blocked: false };
+    }
+    return authClient.checkRateLimit(ip || 'unknown', email);
+  }, []);
+
+  // Initialize auth client and restore session on mount
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Initialize session automatically on app startup with enhanced error handling
-    initializeSession().catch(error => {
-      console.error('[useAuth] Auto-initialization failed:', error);
+    const initialize = async () => {
+      try {
+        setIsInitializing(true);
+        const authClient = await initializeAuthClient();
 
-      // Set initialization error for user feedback
-      if (isMountedRef.current) {
-        setAuthError({
-          message: 'Failed to restore your session. Please log in again.',
-          code: 'STARTUP_INIT_FAILED',
-          recoverable: true,
-          lastOccurred: Date.now(),
-        });
+        if (isMountedRef.current) {
+          // Try to restore existing session
+          const validation = await authClient.validateSession();
+          if (validation.isValid) {
+            updateStateFromAuthClient(authClient);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+        if (isMountedRef.current) {
+          setError(error instanceof Error ? error.message : 'Initialization failed');
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsInitializing(false);
+        }
       }
-    });
+    };
 
-    // Enhanced cleanup function
+    initialize();
+
     return () => {
       isMountedRef.current = false;
 
-      // Clear scheduled token refresh
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-        refreshTimeoutRef.current = null;
+      // Clear session timeout
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
       }
 
-      // Cleanup API client if needed
-      try {
-        const client = getDefaultApiClient();
-        client.cleanup();
-      } catch (error) {
-        console.warn('[useAuth] Cleanup warning:', error);
+      // Dispose auth client
+      if (authClientRef.current) {
+        authClientRef.current.dispose().catch(console.error);
+        authClientRef.current = null;
       }
-
-      console.debug('[useAuth] Hook cleanup completed');
     };
-  }, [initializeSession]);
+  }, [initializeAuthClient, updateStateFromAuthClient]);
 
-  // Enhanced session monitoring and expiration handling effect (Task 15)
+  // Session expiration monitoring
   useEffect(() => {
-    if (!hasValidSession) return;
+    if (!session || !session.expiresAt) return;
 
-    // Set up a timer to check session expiration and handle automatic refresh
-    const checkInterval = setInterval(() => {
-      if (sessionInfo && sessionInfo.expiresAt) {
-        const timeUntilExpiry = sessionInfo.expiresAt - Date.now();
+    // Clear existing timeout
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+    }
 
-        // If session will expire in less than 5 minutes, attempt automatic refresh
-        if (timeUntilExpiry <= 300000 && timeUntilExpiry > 60000) {
-          // Between 5 minutes and 1 minute
-          console.warn(
-            '[useAuth] Session will expire soon, attempting automatic refresh:',
-            new Date(sessionInfo.expiresAt)
-          );
-          refreshSession().catch(error => {
-            console.error('[useAuth] Automatic session refresh failed during monitoring:', error);
-          });
+    // Set timeout for when session expires
+    const timeUntilExpiry = session.expiresAt - Date.now();
+    if (timeUntilExpiry > 0) {
+      sessionTimeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          setError('Session expired');
+          clearState();
         }
-
-        // If session has expired, clear it and set appropriate error
-        if (timeUntilExpiry <= 0) {
-          console.info('[useAuth] Session expired, clearing state');
-
-          setSessionInfo(null);
-          setLoginState({ data: null, status: 'idle', error: null });
-          setProfileState({ data: null, status: 'idle', error: null });
-
-          // Set auth error for session expiration
-          setAuthError({
-            message: 'Your session has expired. Please log in again.',
-            code: 'SESSION_EXPIRED',
-            recoverable: true,
-            lastOccurred: Date.now(),
-          });
-
-          try {
-            const client = getDefaultApiClient();
-            client.setAuthToken(null);
-          } catch (error) {
-            console.warn('[useAuth] Error clearing expired session:', error);
-          }
-        }
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(checkInterval);
-  }, [hasValidSession, sessionInfo, refreshSession]);
-
-  // Effect to schedule automatic token refresh when session info changes (Task 15)
-  useEffect(() => {
-    if (hasValidSession && sessionInfo?.expiresAt) {
-      scheduleTokenRefreshRef.current?.();
+      }, timeUntilExpiry);
     }
 
     return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-        refreshTimeoutRef.current = null;
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
       }
     };
-  }, [hasValidSession, sessionInfo]);
+  }, [session, clearState]);
 
   return {
-    // Existing interface (maintained for backward compatibility)
+    // Core auth state
+    user,
+    session,
+    isAuthenticated,
+    isLoading,
+    isInitializing,
+    error,
+
+    // Auth operations
+    login,
+    signup,
+    logout,
+    refreshSession,
+
+    // Profile operations
+    updateProfile,
+    updatePassword,
+    resetPassword,
+    verifyEmail,
+
+    // Session management
+    hasValidSession,
+    isSessionExpired,
+    isSessionExpiring,
+    getSessionTimeRemaining,
+    validateSession,
+
+    // Service health and monitoring
+    getSessionStatistics,
+    checkHealth,
+    addAuthStateListener,
+
+    // Utility functions
+    clearState,
+    clearError,
+    isRememberMeEnabled,
+
+    // Validation methods
+    validateEmail,
+    validatePassword,
+    validateName,
+    generateCSRFToken,
+    validateCSRFToken,
+    checkRateLimit,
+
+    // Legacy compatibility
     loginState,
     registerState,
     logoutState,
     profileState,
-    login,
-    register,
-    logout,
-    getProfile,
-    updateProfile,
-    clearState,
-
-    // Enhanced features (new additions)
-    isAuthenticated,
-    isInitializing,
-    hasValidSession,
     sessionInfo,
-    initializeSession,
-    checkServiceHealth,
-
-    // Enhanced authentication state management (Task 15)
-    sessionRestoreState,
-    isSessionExpired,
-    isSessionExpiring,
-    refreshTokenState,
-    authError,
-    retryAuthentication,
-    refreshSession,
-    clearAuthError,
-    getSessionTimeRemaining,
   };
 }

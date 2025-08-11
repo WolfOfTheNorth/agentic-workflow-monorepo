@@ -283,7 +283,7 @@ export class SecureTokenStorage {
       return null;
     }
 
-    const { value, ...metadata } = storedToken;
+    const { value: _value, ...metadata } = storedToken;
     return metadata;
   }
 
@@ -292,7 +292,7 @@ export class SecureTokenStorage {
    */
   clearAllTokens(): void {
     // Securely erase all token values
-    for (const [key, storedToken] of this.tokens.entries()) {
+    for (const [_key, storedToken] of this.tokens.entries()) {
       if (typeof storedToken.value === 'string') {
         this.securelyEraseString(storedToken.value);
       }
@@ -467,13 +467,13 @@ export class SecureTokenStorage {
 
     try {
       sessionStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch (_error) {
       // Ignore
     }
 
     try {
       localStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch (_error) {
       // Ignore
     }
   }
@@ -497,7 +497,7 @@ export class SecureTokenStorage {
         }
       }
       keysToRemove.forEach(key => sessionStorage.removeItem(key));
-    } catch (error) {
+    } catch (_error) {
       // Ignore
     }
 
@@ -511,7 +511,7 @@ export class SecureTokenStorage {
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key));
-    } catch (error) {
+    } catch (_error) {
       // Ignore
     }
   }
@@ -519,11 +519,11 @@ export class SecureTokenStorage {
   /**
    * Securely erase a string from memory
    */
-  private securelyEraseString(str: string): void {
+  private securelyEraseString(_str: string): void {
     // In JavaScript, strings are immutable, so we can't actually overwrite them
     // This is a placeholder for where memory clearing would happen in other languages
     // The best we can do is ensure references are removed
-    str = '';
+    // _str = ''; // Cannot reassign parameter
   }
 
   /**

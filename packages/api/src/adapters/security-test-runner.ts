@@ -434,7 +434,7 @@ export class SecurityTestRunner {
    */
   private assessGDPRCompliance(
     auditResult?: SecurityAuditResult,
-    penetrationResult?: PenetrationTestResult
+    _penetrationResult?: PenetrationTestResult
   ) {
     const failedChecks: string[] = [];
     let score = 100;

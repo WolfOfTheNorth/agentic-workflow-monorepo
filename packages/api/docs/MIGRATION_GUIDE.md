@@ -30,6 +30,7 @@ The Supabase authentication integration replaces Django's authentication backend
 ### Migration Strategy
 
 The migration follows a **blue-green deployment** approach:
+
 1. Set up Supabase alongside existing Django auth
 2. Gradually migrate users and test functionality
 3. Switch traffic to Supabase when ready
@@ -62,7 +63,7 @@ grep -r "django.contrib.auth" --include="*.py" .
 grep -r "User.objects" --include="*.py" .
 grep -r "@login_required" --include="*.py" .
 
-# Check frontend auth usage  
+# Check frontend auth usage
 grep -r "useAuth" --include="*.tsx" --include="*.ts" .
 grep -r "authApi" --include="*.tsx" --include="*.ts" .
 ```
@@ -78,7 +79,7 @@ Analyze your current user data structure:
 ```sql
 -- Get user count and data structure
 SELECT COUNT(*) as total_users FROM auth_user;
-SELECT column_name, data_type FROM information_schema.columns 
+SELECT column_name, data_type FROM information_schema.columns
 WHERE table_name = 'auth_user';
 
 -- Check for custom user fields
@@ -88,6 +89,7 @@ SELECT COUNT(*) as users_with_custom_data FROM your_user_profile_table;
 ### 2. Authentication Flow Mapping
 
 Document your current authentication flows:
+
 - Login process
 - Registration process
 - Password reset flow
@@ -98,6 +100,7 @@ Document your current authentication flows:
 ### 3. Integration Points Inventory
 
 List all systems that integrate with authentication:
+
 - Frontend applications
 - API endpoints
 - Third-party services
@@ -108,20 +111,21 @@ List all systems that integrate with authentication:
 
 Recommended timeline for migration:
 
-| Phase | Duration | Activities |
-|-------|----------|------------|
-| Planning | 1-2 days | System audit, documentation, team briefing |
-| Setup | 1 day | Supabase project creation, environment setup |
-| Development | 3-5 days | Code changes, testing, validation |
-| Staging Testing | 2-3 days | End-to-end testing, performance validation |
-| Production Deploy | 1 day | Deployment, monitoring, validation |
-| Stabilization | 3-7 days | Monitoring, issue resolution, optimization |
+| Phase             | Duration | Activities                                   |
+| ----------------- | -------- | -------------------------------------------- |
+| Planning          | 1-2 days | System audit, documentation, team briefing   |
+| Setup             | 1 day    | Supabase project creation, environment setup |
+| Development       | 3-5 days | Code changes, testing, validation            |
+| Staging Testing   | 2-3 days | End-to-end testing, performance validation   |
+| Production Deploy | 1 day    | Deployment, monitoring, validation           |
+| Stabilization     | 3-7 days | Monitoring, issue resolution, optimization   |
 
 ## Environment Setup
 
 ### 1. Supabase Project Creation
 
 1. **Create Supabase Project**:
+
    ```bash
    # Visit https://supabase.com/dashboard
    # Click "New Project"
@@ -131,20 +135,22 @@ Recommended timeline for migration:
    ```
 
 2. **Configure Authentication Settings**:
+
    ```sql
    -- In Supabase SQL Editor
    -- Enable email confirmations
    UPDATE auth.config SET enable_confirmations = true;
-   
+
    -- Set email templates (optional)
    -- Configure in Supabase Dashboard > Authentication > Email Templates
    ```
 
 3. **Set Up Row Level Security** (if using Supabase database):
+
    ```sql
    -- Enable RLS on auth tables
    ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
-   
+
    -- Create policies as needed for your use case
    ```
 
@@ -153,6 +159,7 @@ Recommended timeline for migration:
 Create environment configuration for all environments:
 
 #### Development Environment (.env.local)
+
 ```bash
 # Supabase Configuration
 SUPABASE_URL=https://your-project-id.supabase.co
@@ -184,6 +191,7 @@ MIGRATION_BATCH_SIZE=100
 ```
 
 #### Staging Environment
+
 ```bash
 # Copy development config and adjust:
 ENABLE_DEBUG_MODE=false
@@ -192,6 +200,7 @@ MIGRATION_BATCH_SIZE=500
 ```
 
 #### Production Environment
+
 ```bash
 # Use production Supabase project
 SUPABASE_URL=https://your-prod-project.supabase.co
@@ -231,6 +240,7 @@ AUTH_RATE_LIMIT_WINDOW=600
    - Set up database backups
 
 #### Network Security
+
 ```bash
 # Configure firewall rules (if applicable)
 # Allow only necessary IPs to access Supabase
@@ -301,13 +311,13 @@ from your_app.models import UserProfile
 class Command(BaseCommand):
     def handle(self, *args, **options):
         users_data = []
-        
+
         for user in User.objects.all():
             try:
                 profile = user.userprofile
             except UserProfile.DoesNotExist:
                 profile = None
-                
+
             user_data = {
                 'id': user.id,
                 'email': user.email,
@@ -322,14 +332,15 @@ class Command(BaseCommand):
                 } if profile else None
             }
             users_data.append(user_data)
-        
+
         with open('exported_users.json', 'w') as f:
             json.dump(users_data, f, indent=2)
-        
+
         self.stdout.write(f"Exported {len(users_data)} users to exported_users.json")
 ```
 
 Run the export:
+
 ```bash
 python manage.py export_users
 ```
@@ -360,19 +371,17 @@ interface ExportedUser {
 async function migrateUsers() {
   const supabaseUrl = process.env.SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  
+
   // Use service role key for admin operations
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  
-  const exportedUsers: ExportedUser[] = JSON.parse(
-    fs.readFileSync('exported_users.json', 'utf8')
-  );
-  
+
+  const exportedUsers: ExportedUser[] = JSON.parse(fs.readFileSync('exported_users.json', 'utf8'));
+
   console.log(`Starting migration of ${exportedUsers.length} users...`);
-  
+
   let migrated = 0;
   let errors = 0;
-  
+
   for (const user of exportedUsers) {
     try {
       // Create user in Supabase auth
@@ -384,30 +393,29 @@ async function migrateUsers() {
           migrated_from_django: true,
           original_django_id: user.id,
           date_joined: user.date_joined,
-          last_login: user.last_login
-        }
+          last_login: user.last_login,
+        },
       });
-      
+
       if (error) {
         console.error(`Failed to migrate user ${user.email}:`, error.message);
         errors++;
         continue;
       }
-      
+
       // Store mapping of Django ID to Supabase ID for reference
       // You might want to store this in a temporary table
-      
+
       migrated++;
       if (migrated % 100 === 0) {
         console.log(`Migrated ${migrated} users...`);
       }
-      
     } catch (error) {
       console.error(`Error migrating user ${user.email}:`, error);
       errors++;
     }
   }
-  
+
   console.log(`Migration completed: ${migrated} successful, ${errors} errors`);
 }
 
@@ -415,6 +423,7 @@ migrateUsers().catch(console.error);
 ```
 
 Run the migration:
+
 ```bash
 # Set environment variables
 export SUPABASE_URL="your-supabase-url"
@@ -462,31 +471,31 @@ export function getFeatureFlags(): FeatureFlags {
   return {
     useSupabaseAuth: process.env.USE_SUPABASE_AUTH === 'true',
     supabaseAuthPercentage: parseInt(process.env.SUPABASE_AUTH_PERCENTAGE || '0'),
-    enableDjangoFallback: process.env.DJANGO_AUTH_FALLBACK === 'true'
+    enableDjangoFallback: process.env.DJANGO_AUTH_FALLBACK === 'true',
   };
 }
 
 export function shouldUseSupabaseAuth(userId?: string): boolean {
   const flags = getFeatureFlags();
-  
+
   if (!flags.useSupabaseAuth) {
     return false;
   }
-  
+
   if (flags.supabaseAuthPercentage === 100) {
     return true;
   }
-  
+
   if (flags.supabaseAuthPercentage === 0) {
     return false;
   }
-  
+
   // Use userId hash to determine consistent user assignment
   if (userId) {
     const hash = hashUserId(userId);
-    return (hash % 100) < flags.supabaseAuthPercentage;
+    return hash % 100 < flags.supabaseAuthPercentage;
   }
-  
+
   return Math.random() * 100 < flags.supabaseAuthPercentage;
 }
 
@@ -494,7 +503,7 @@ function hashUserId(userId: string): number {
   let hash = 0;
   for (let i = 0; i < userId.length; i++) {
     const char = userId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -503,14 +512,14 @@ function hashUserId(userId: string): number {
 
 #### 2. Gradual Rollout Schedule
 
-| Week | Percentage | User Group | Monitoring Focus |
-|------|------------|------------|------------------|
-| 1 | 5% | Internal team, beta users | Basic functionality, error rates |
-| 2 | 10% | Early adopters | Performance, user experience |
-| 3 | 25% | Active users | Session management, edge cases |
-| 4 | 50% | General population | Load testing, scalability |
-| 5 | 75% | Majority users | Stability, long-term sessions |
-| 6 | 100% | All users | Full migration complete |
+| Week | Percentage | User Group                | Monitoring Focus                 |
+| ---- | ---------- | ------------------------- | -------------------------------- |
+| 1    | 5%         | Internal team, beta users | Basic functionality, error rates |
+| 2    | 10%        | Early adopters            | Performance, user experience     |
+| 3    | 25%        | Active users              | Session management, edge cases   |
+| 4    | 50%        | General population        | Load testing, scalability        |
+| 5    | 75%        | Majority users            | Stability, long-term sessions    |
+| 6    | 100%       | All users                 | Full migration complete          |
 
 #### 3. Monitoring During Rollout
 
@@ -522,18 +531,18 @@ const rolloutMetrics = {
   // Authentication success rates
   supabaseAuthSuccessRate: 0,
   djangoAuthSuccessRate: 0,
-  
+
   // Response times
   supabaseAvgResponseTime: 0,
   djangoAvgResponseTime: 0,
-  
+
   // Error rates
   supabaseErrorRate: 0,
   djangoErrorRate: 0,
-  
+
   // User experience
   sessionRestoreSuccessRate: 0,
-  tokenRefreshSuccessRate: 0
+  tokenRefreshSuccessRate: 0,
 };
 ```
 
@@ -550,31 +559,30 @@ export async function migrateUserSession(djangoSessionToken: string): Promise<bo
     // 1. Validate Django session
     const djangoUser = await validateDjangoSession(djangoSessionToken);
     if (!djangoUser) return false;
-    
+
     // 2. Find corresponding Supabase user
     const supabaseUser = await findSupabaseUserByEmail(djangoUser.email);
     if (!supabaseUser) return false;
-    
+
     // 3. Create Supabase session
     const { data, error } = await supabaseClient.auth.admin.generateLink({
       type: 'magiclink',
       email: djangoUser.email,
       options: {
-        redirectTo: window.location.href
-      }
+        redirectTo: window.location.href,
+      },
     });
-    
+
     if (error) return false;
-    
+
     // 4. Automatically sign in user
     const { error: signInError } = await supabaseClient.auth.signInWithOtp({
       email: djangoUser.email,
       token: data.properties.email_otp,
-      type: 'email'
+      type: 'email',
     });
-    
+
     return !signInError;
-    
   } catch (error) {
     console.error('Session migration failed:', error);
     return false;
@@ -588,23 +596,23 @@ Ensure all user profile data is transferred:
 
 ```typescript
 // src/utils/profile-migration.ts
-export async function migrateUserProfile(supabaseUserId: string, djangoUserId: number): Promise<boolean> {
+export async function migrateUserProfile(
+  supabaseUserId: string,
+  djangoUserId: number
+): Promise<boolean> {
   try {
     // 1. Fetch Django profile data
     const djangoProfile = await fetchDjangoProfile(djangoUserId);
-    
+
     // 2. Update Supabase user metadata
-    const { error } = await supabaseClient.auth.admin.updateUserById(
-      supabaseUserId,
-      {
-        user_metadata: {
-          ...djangoProfile,
-          migrated_from_django: true,
-          migration_date: new Date().toISOString()
-        }
-      }
-    );
-    
+    const { error } = await supabaseClient.auth.admin.updateUserById(supabaseUserId, {
+      user_metadata: {
+        ...djangoProfile,
+        migrated_from_django: true,
+        migration_date: new Date().toISOString(),
+      },
+    });
+
     return !error;
   } catch (error) {
     console.error('Profile migration failed:', error);
@@ -640,15 +648,15 @@ describe('Migration Validation', () => {
   it('should migrate user data correctly', async () => {
     // Test user data migration
   });
-  
+
   it('should maintain session continuity', async () => {
     // Test session migration
   });
-  
+
   it('should handle authentication with both systems', async () => {
     // Test hybrid operation
   });
-  
+
   it('should fallback to Django when needed', async () => {
     // Test fallback mechanisms
   });
@@ -694,23 +702,25 @@ pnpm audit
 #### Blue-Green Deployment
 
 1. **Deploy to Green Environment**:
+
    ```bash
    # Deploy new version with Supabase integration
    pnpm build
    pnpm deploy:staging
-   
+
    # Run smoke tests
    pnpm test:smoke
    ```
 
 2. **Traffic Shifting**:
+
    ```bash
    # Start with 5% traffic
    ./scripts/set-traffic-split.sh 5
-   
+
    # Monitor for 30 minutes
    ./scripts/monitor-deployment.sh
-   
+
    # Gradually increase traffic
    ./scripts/set-traffic-split.sh 25
    ./scripts/set-traffic-split.sh 50
@@ -718,10 +728,11 @@ pnpm audit
    ```
 
 3. **Full Cutover**:
+
    ```bash
    # Switch all traffic to green
    ./scripts/complete-deployment.sh
-   
+
    # Verify all systems operational
    ./scripts/health-check.sh
    ```
@@ -729,6 +740,7 @@ pnpm audit
 ### 3. Monitoring Post-Deployment
 
 Set up alerts for:
+
 - Authentication success rate < 95%
 - Response time > 2 seconds
 - Error rate > 1%
@@ -754,7 +766,7 @@ export const optimizedCacheConfig = {
   profileCacheTTL: 600000, // 10 minutes
   maxProfileCacheSize: 1000,
   enableRequestDeduplication: true,
-  deduplicationWindow: 30000 // 30 seconds
+  deduplicationWindow: 30000, // 30 seconds
 };
 
 // Update analytics retention
@@ -762,7 +774,7 @@ export const productionAnalyticsConfig = {
   eventRetentionTime: 2592000000, // 30 days
   errorRetentionTime: 7776000000, // 90 days
   enableAutoReporting: true,
-  reportingInterval: 300000 // 5 minutes
+  reportingInterval: 300000, // 5 minutes
 };
 ```
 
@@ -771,6 +783,7 @@ export const productionAnalyticsConfig = {
 After successful migration and stabilization period:
 
 1. **Remove Django Auth Dependencies**:
+
    ```python
    # Comment out or remove Django auth URLs
    # Comment out Django auth middleware
@@ -778,20 +791,22 @@ After successful migration and stabilization period:
    ```
 
 2. **Clean Up Migration Code**:
+
    ```bash
    # Remove migration scripts
    rm scripts/migrate-users.ts
-   
+
    # Remove feature flags
    # Remove fallback code paths
    ```
 
 3. **Database Cleanup**:
+
    ```sql
    -- Archive Django user tables (don't delete immediately)
    ALTER TABLE auth_user RENAME TO auth_user_archived;
    ALTER TABLE auth_user_groups RENAME TO auth_user_groups_archived;
-   
+
    -- Drop migration mapping table after validation period
    -- DROP TABLE user_migration_mapping;
    ```
@@ -925,6 +940,7 @@ Migration is considered successful when:
 - **Annually**: Architecture review and technology updates
 
 For additional support, refer to:
+
 - [Security Best Practices](./SECURITY.md)
 - [Troubleshooting Guide](./TROUBLESHOOTING.md)
 - [API Documentation](./API_REFERENCE.md)

@@ -110,6 +110,7 @@
     "lint-staged": "^16.1.2",
     "playwright": "^1.54.1",
     "prettier": "^3.6.2",
+    "puppeteer": "^24.15.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "supertest": "^7.1.4",
     "typescript": "^5.0.0",
