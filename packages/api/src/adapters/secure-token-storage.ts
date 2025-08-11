@@ -149,7 +149,7 @@ export class SecureTokenStorage {
 
     // Try to load from secure storage if not in memory
     if (!storedToken && this.config.storage.useSecureStorage && typeof window !== 'undefined') {
-      storedToken = this.loadFromSecureStorage(key);
+      storedToken = this.loadFromSecureStorage(key) || undefined;
       if (storedToken) {
         this.tokens.set(key, storedToken);
       }

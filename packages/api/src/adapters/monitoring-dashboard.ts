@@ -72,7 +72,7 @@ export interface DashboardSummary {
  * Monitoring dashboard class
  */
 export class MonitoringDashboard {
-  private _adapter: SupabaseAdapter;
+  private adapter: SupabaseAdapter;
   private monitor: AnalyticsMonitor;
   private config: DashboardConfig;
   private alerts: Map<string, SystemAlert> = new Map();
@@ -80,7 +80,7 @@ export class MonitoringDashboard {
   private logger: DashboardLogger;
 
   constructor(adapter: SupabaseAdapter, config?: Partial<DashboardConfig>) {
-    this._adapter = adapter;
+    this.adapter = adapter;
     this.monitor = adapter.getAnalyticsMonitor();
     this.config = {
       refreshInterval: 60000, // 1 minute

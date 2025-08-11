@@ -99,7 +99,7 @@ export class DjangoUserAdapter implements DjangoUser {
 
   get is_active(): boolean {
     // In Supabase, banned users are considered inactive
-    return !this.authUser.banned_until || (this.authUser.banned_until && new Date(this.authUser.banned_until) < new Date());
+    return !this.authUser.banned_until || new Date(this.authUser.banned_until) < new Date();
   }
 
   get is_staff(): boolean {

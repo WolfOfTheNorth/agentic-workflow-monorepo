@@ -117,12 +117,13 @@ export function useAuth(): UseAuthReturn {
   const isAuthenticated = user !== null && session !== null;
   const hasValidSession =
     session !== null && (!session.expiresAt || session.expiresAt > Date.now());
-  const isSessionExpired = session !== null && session.expiresAt && session.expiresAt <= Date.now();
-  const isSessionExpiring =
+  const isSessionExpired = Boolean(session !== null && session.expiresAt && session.expiresAt <= Date.now());
+  const isSessionExpiring = Boolean(
     session !== null &&
     session.expiresAt &&
     session.expiresAt - Date.now() <= 300000 && // 5 minutes
-    session.expiresAt - Date.now() > 0;
+    session.expiresAt - Date.now() > 0
+  );
 
   // Initialize AuthClient
   const initializeAuthClient = useCallback(async () => {

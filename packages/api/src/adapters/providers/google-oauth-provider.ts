@@ -210,7 +210,7 @@ export class GoogleOAuthProvider implements AuthProvider {
         session: {
           id: this.generateSessionId(),
           accessToken: tokenResponse.tokens!.accessToken,
-          refreshToken: tokenResponse.tokens!.refreshToken,
+          refreshToken: tokenResponse.tokens!.refreshToken || '',
           expiresAt: Date.now() + tokenResponse.tokens!.expiresIn * 1000,
           createdAt: new Date().toISOString(),
           lastActivityAt: new Date().toISOString(),
@@ -431,7 +431,7 @@ export class GoogleOAuthProvider implements AuthProvider {
 
   private validateState(state: string): boolean {
     // In a real implementation, validate against stored state
-    return state && state.length > 0;
+    return Boolean(state && state.length > 0);
   }
 
   private async exchangeCodeForTokens(
