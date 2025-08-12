@@ -1,14 +1,14 @@
-# Dependabot configuration for automated dependency updates
+# Improved Dependabot configuration - fewer, smarter updates
 version: 2
 updates:
-  # Enable version updates for npm packages (pnpm workspace)
+  # Consolidate to single root npm config with better grouping and scheduling
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
+      interval: 'monthly' # Reduced frequency
       day: 'monday'
       time: '09:00'
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5 # Reduced from 35+ total
     assignees:
       - '@WolfOfTheNorth'
     reviewers:
@@ -19,71 +19,99 @@ updates:
     labels:
       - 'dependencies'
       - 'automated'
+
+    # Block problematic major updates
     ignore:
-      # Ignore major version updates for critical packages to avoid breaking changes
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
-      - dependency-name: 'node'
+      - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      - dependency-name: '@typescript-eslint/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'vite'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'jest'
+        update-types: ['version-update:semver-major']
+
+    # Smart grouping to reduce PR count
     groups:
-      # Group related dependencies together
+      # Critical framework updates (careful review needed)
       react-ecosystem:
         patterns:
           - 'react*'
           - '@types/react*'
-        exclude-patterns:
-          - 'react-scripts'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # TypeScript ecosystem (likely to cause conflicts)
       typescript-ecosystem:
         patterns:
           - 'typescript'
           - '@typescript-eslint/*'
           - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # Testing tools (can break together)
       testing-ecosystem:
         patterns:
           - 'jest*'
           - '@testing-library/*'
           - 'playwright*'
           - '@playwright/*'
-      eslint-ecosystem:
+          - 'supertest'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # Linting tools (style/config changes)
+      linting-ecosystem:
         patterns:
           - 'eslint*'
           - '@eslint/*'
+          - 'prettier'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # Build tools (can affect entire monorepo)
       build-tools:
         patterns:
           - 'vite*'
           - '@vitejs/*'
           - 'rollup*'
           - 'webpack*'
+          - 'concurrently'
+        update-types:
+          - 'minor'
+          - 'patch'
 
-  # Frontend package dependencies
-  - package-ecosystem: 'npm'
-    directory: '/apps/frontend'
-    schedule:
-      interval: 'weekly'
-      day: 'tuesday'
-      time: '09:00'
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: 'chore(frontend/deps)'
-    labels:
-      - 'dependencies'
-      - 'frontend'
-      - 'automated'
+      # Safe utility updates (low risk)
+      utilities:
+        patterns:
+          - 'chalk'
+          - 'glob'
+          - 'minimist'
+          - 'husky'
+          - 'lint-staged'
+        update-types:
+          - 'minor'
+          - 'patch'
 
-  # Backend Python dependencies
+  # Backend Python - keep separate due to different ecosystem
   - package-ecosystem: 'pip'
     directory: '/apps/backend'
     schedule:
-      interval: 'weekly'
-      day: 'wednesday'
+      interval: 'monthly' # Reduced frequency
+      day: 'tuesday'
       time: '09:00'
-    open-pull-requests-limit: 5
-    assignees:
-      - '@WolfOfTheNorth'
+    open-pull-requests-limit: 3
     commit-message:
       prefix: 'chore(backend/deps)'
     labels:
@@ -92,77 +120,16 @@ updates:
       - 'python'
       - 'automated'
     ignore:
-      # Ignore major Django updates to avoid breaking changes
       - dependency-name: 'django'
         update-types: ['version-update:semver-major']
 
-  # Shared packages dependencies
-  - package-ecosystem: 'npm'
-    directory: '/packages/shared'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '09:00'
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: 'chore(shared/deps)'
-    labels:
-      - 'dependencies'
-      - 'shared'
-      - 'automated'
-
-  # UI package dependencies
-  - package-ecosystem: 'npm'
-    directory: '/packages/ui'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '10:00'
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: 'chore(ui/deps)'
-    labels:
-      - 'dependencies'
-      - 'ui'
-      - 'automated'
-
-  # API package dependencies
-  - package-ecosystem: 'npm'
-    directory: '/packages/api'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '11:00'
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: 'chore(api/deps)'
-    labels:
-      - 'dependencies'
-      - 'api'
-      - 'automated'
-
-  # Tools dependencies
-  - package-ecosystem: 'npm'
-    directory: '/tools'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '09:00'
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: 'chore(tools/deps)'
-    labels:
-      - 'dependencies'
-      - 'tools'
-      - 'automated'
-
-  # Docker dependencies
+  # Docker - keep monthly for security
   - package-ecosystem: 'docker'
     directory: '/infra/docker'
     schedule:
       interval: 'monthly'
       day: 'monday'
-      time: '09:00'
+      time: '10:00'
     open-pull-requests-limit: 2
     commit-message:
       prefix: 'chore(docker)'
@@ -172,14 +139,14 @@ updates:
       - 'infrastructure'
       - 'automated'
 
-  # GitHub Actions dependencies
+  # GitHub Actions - quarterly for stability
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'monthly'
       day: 'monday'
-      time: '10:00'
-    open-pull-requests-limit: 5
+      time: '11:00'
+    open-pull-requests-limit: 3
     commit-message:
       prefix: 'chore(ci)'
     labels:
