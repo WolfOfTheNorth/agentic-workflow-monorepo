@@ -11,17 +11,14 @@ import {
   SignupData,
   AuthResponse,
   AuthSession,
-  AuthTokens,
   AuthError,
   PasswordResetRequest,
   PasswordResetResponse,
-  ApiResponse,
-  ApiError,
 } from '@agentic-workflow/shared';
 import { ApiClient, TokenRefreshHandler } from '../client/base';
 import { AgenticWorkflowApiClient } from '../client';
 import { SupabaseAuthAdapter } from '../adapters/supabase-adapter';
-import { getSupabaseClient } from './supabase';
+// import { getSupabaseClient } from './supabase';
 import {
   EnhancedTokenStorage,
   createEnhancedTokenStorage,
@@ -618,7 +615,7 @@ export class AuthClient implements TokenRefreshHandler {
     const userId = this.currentUser?.id;
 
     try {
-      const result = await this.supabaseAdapter.logout();
+      await this.supabaseAdapter.logout();
 
       // Track metrics
       if (userId) {
@@ -962,7 +959,7 @@ export class AuthClient implements TokenRefreshHandler {
       const buffer = 300; // 5 minutes buffer
 
       return exp - buffer <= now;
-    } catch (error) {
+    } catch {
       // If we can't parse the token, assume it's expired
       return true;
     }

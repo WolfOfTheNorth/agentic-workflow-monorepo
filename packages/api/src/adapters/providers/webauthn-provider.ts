@@ -201,7 +201,7 @@ export class WebAuthnProvider implements AuthProvider {
    */
   async signup(
     userData: Record<string, any>,
-    context?: AuthProviderContext
+    _context?: AuthProviderContext
   ): Promise<AuthProviderResult> {
     if (!this.isWebAuthnSupported()) {
       return {
@@ -252,7 +252,7 @@ export class WebAuthnProvider implements AuthProvider {
    */
   async login(
     credentials: Record<string, any>,
-    context?: AuthProviderContext
+    _context?: AuthProviderContext
   ): Promise<AuthProviderResult> {
     if (!this.isWebAuthnSupported()) {
       return {
@@ -265,7 +265,7 @@ export class WebAuthnProvider implements AuthProvider {
     }
 
     try {
-      const { userId, email } = credentials;
+      const { userId } = credentials;
 
       // Generate authentication options
       const options = this.generateAuthenticationOptions(userId);
@@ -543,7 +543,7 @@ export class WebAuthnProvider implements AuthProvider {
     name: string
   ): RegistrationOptions {
     const challenge = this.generateChallenge();
-    const challengeId = this.storeChallenge(challenge);
+    this.storeChallenge(challenge);
 
     const userIdBuffer = new TextEncoder().encode(userId);
 
@@ -575,7 +575,7 @@ export class WebAuthnProvider implements AuthProvider {
 
   private generateAuthenticationOptions(userId?: string): AuthenticationOptions {
     const challenge = this.generateChallenge();
-    const challengeId = this.storeChallenge(challenge);
+    this.storeChallenge(challenge);
 
     return {
       challenge,

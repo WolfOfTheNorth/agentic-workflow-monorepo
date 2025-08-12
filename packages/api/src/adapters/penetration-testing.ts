@@ -153,13 +153,13 @@ export class PenetrationTestingService {
   private config: PenetrationTestConfig;
   private validationService: AuthValidationService;
   private tokenStorage: SecureTokenStorage;
-  private auditService: SecurityAuditService;
+  // private auditService: SecurityAuditService;
 
   constructor(
     config: Partial<PenetrationTestConfig> = {},
     validationService?: AuthValidationService,
     tokenStorage?: SecureTokenStorage,
-    auditService?: SecurityAuditService
+    _auditService?: SecurityAuditService
   ) {
     this.config = {
       scenarios: DEFAULT_ATTACK_SCENARIOS,
@@ -173,7 +173,7 @@ export class PenetrationTestingService {
 
     this.validationService = validationService || new AuthValidationService();
     this.tokenStorage = tokenStorage || new SecureTokenStorage();
-    this.auditService = auditService || new SecurityAuditService();
+    // this.auditService = _auditService || new SecurityAuditService();
   }
 
   /**

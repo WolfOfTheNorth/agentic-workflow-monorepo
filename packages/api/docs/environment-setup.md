@@ -336,6 +336,7 @@ if settings.ENVIRONMENT == 'production':
    ```
 
 2. **Docker Compose with Environment**:
+
    ```yaml
    # docker-compose.yml
    version: '3.8'

@@ -121,7 +121,7 @@ export class SupabaseAuthAdapter {
   private sessionStorage: SessionStorage;
   private currentSession: EnhancedAuthSession | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
-  private eventListeners: Array<{ event: string; callback: Function }> = [];
+  private eventListeners: Array<{ event: string; callback: (...args: any[]) => void }> = [];
 
   constructor(config: SupabaseAdapterConfig) {
     this.config = config;
@@ -449,7 +449,7 @@ export class SupabaseAuthAdapter {
   /**
    * Add event listener
    */
-  addSessionEventListener(event: string, callback: Function): () => void {
+  addSessionEventListener(event: string, callback: (...args: any[]) => void): () => void {
     const listener = { event, callback };
     this.eventListeners.push(listener);
 
@@ -510,7 +510,9 @@ export class SupabaseAuthAdapter {
         this.clearCurrentSession();
         return {
           isValid: false,
-          error: serverValidation.error ? this.createEnhancedError(serverValidation.error, { operation: 'validateSession' }) : undefined,
+          error: serverValidation.error
+            ? this.createEnhancedError(serverValidation.error, { operation: 'validateSession' })
+            : undefined,
         };
       }
 
@@ -578,7 +580,7 @@ export class SupabaseAuthAdapter {
   /**
    * Enhanced error classification system
    */
-  private classifyError(error: any, context?: Record<string, any>): ErrorClassification {
+  private classifyError(error: any, _context?: Record<string, any>): ErrorClassification {
     // Network-related errors
     if (
       error.name === 'NetworkError' ||
@@ -736,11 +738,11 @@ export class SupabaseAuthAdapter {
   /**
    * Check if the error is retryable based on configuration
    */
-  private isRetryableError(error: EnhancedAuthError): boolean {
-    return (
-      this.retryConfig.retryableErrorCodes.includes(error.code) || error.classification.retryable
-    );
-  }
+  // private isRetryableError(_error: EnhancedAuthError): boolean {
+  //   return (
+  //     this.retryConfig.retryableErrorCodes.includes(_error.code) || _error.classification.retryable
+  //   );
+  // }
 
   /**
    * Initialize the adapter and test connection
@@ -1387,8 +1389,8 @@ export class AuthCircuitBreaker {
 
   constructor(
     private maxFailures = 5,
-    private resetTimeout = 60000, // 1 minute
-    private checkInterval = 30000 // 30 seconds
+    private resetTimeout = 60000 // 1 minute
+    // private checkInterval = 30000 // 30 seconds - reserved for future use
   ) {}
 
   async execute<T>(operation: () => Promise<T>): Promise<T> {

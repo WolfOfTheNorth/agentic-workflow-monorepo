@@ -107,13 +107,15 @@ export function useMultiTabSync(
         }
 
         // Debounce event handling
-        pendingEventRef.current = setTimeout(async () => {
-          try {
-            await onEvent(event);
-          } catch (error) {
-            console.warn('Error handling tab sync event:', error);
-          }
-        }, debounceMs / 4);
+        pendingEventRef.current = Number(
+          setTimeout(async () => {
+            try {
+              await onEvent(event);
+            } catch (error) {
+              console.warn('Error handling tab sync event:', error);
+            }
+          }, debounceMs / 4)
+        );
       } catch (error) {
         console.warn('Failed to parse tab sync event:', error);
       }

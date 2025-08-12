@@ -641,7 +641,7 @@ export class SecurityAuditService {
         } else {
           passedTests++;
         }
-      } catch (error) {
+      } catch {
         // Error in validation is expected for bypass attempts
         passedTests++;
       }
@@ -665,7 +665,8 @@ export class SecurityAuditService {
 
     // Test session token validation
     totalTests++;
-    const sessionToken = this.validationService.generateCSRFToken();
+    // Generate test token for validation
+    this.validationService.generateCSRFToken();
     const validationResult = this.tokenStorage.validateToken('session-test');
 
     if (validationResult.isValid && !validationResult.needsRotation) {

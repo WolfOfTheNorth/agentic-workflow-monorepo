@@ -184,7 +184,7 @@ export class AuthErrorBoundary extends Component<AuthErrorBoundaryProps, AuthErr
             </button>
           </div>
 
-          {import.meta.env.DEV && this.state.errorInfo && (
+          {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
             <details style={{ marginTop: '16px' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
                 Development Details

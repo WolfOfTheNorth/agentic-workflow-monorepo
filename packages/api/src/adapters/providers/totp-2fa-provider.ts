@@ -490,7 +490,7 @@ export class TOTP2FAProvider implements AuthProvider {
 
   private cleanupUsedCodes(): void {
     // Remove codes older than 2 periods to prevent memory bloat
-    const cutoff = Date.now() - this.config.period * 2 * 1000;
+    // const cutoff = Date.now() - this.config.period * 2 * 1000;
 
     // In production, implement proper timestamp tracking for used codes
     if (this.usedCodes.size > 10000) {

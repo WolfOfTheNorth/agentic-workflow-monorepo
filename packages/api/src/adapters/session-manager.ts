@@ -442,7 +442,10 @@ export class SessionManager {
             refresh_token: data.session.refresh_token,
             expires_at: this.calculateExpirationTime(data.session.expires_in),
             last_refreshed: Date.now(),
-            user: this.currentSession?.user || mapSupabaseUserToProfile(data.session.user) || ({} as ProfileResponse),
+            user:
+              this.currentSession?.user ||
+              mapSupabaseUserToProfile(data.session.user) ||
+              ({} as ProfileResponse),
             session_id:
               this.currentSession?.session_id ||
               `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
