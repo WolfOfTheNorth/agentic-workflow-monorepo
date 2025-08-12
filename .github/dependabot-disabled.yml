@@ -1,0 +1,10 @@
+# Disabled Dependabot configuration
+# To completely disable Dependabot, rename this file to dependabot.yml
+# and it will override the current configuration with no active update schedules
+
+version: 2
+updates: []
+# Alternative: You can also disable Dependabot entirely in your GitHub repository settings:
+# 1. Go to Settings > Code security and analysis
+# 2. Disable "Dependabot version updates"
+# 3. Optionally keep "Dependabot security updates" for critical vulnerabilities only
