@@ -4,13 +4,14 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts?(x)', '**/?(*.)+(spec|test).ts?(x)'],
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      useESM: true,
-    }],
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@supabase|isows|ws|@supabase/.*|isows/.*|ws/.*)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@supabase|isows|ws|@supabase/.*|isows/.*|ws/.*)/)'],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/index.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

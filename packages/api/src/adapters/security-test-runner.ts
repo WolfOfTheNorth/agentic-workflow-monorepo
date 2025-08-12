@@ -201,7 +201,9 @@ export class SecurityTestRunner {
       return result;
     } catch (error) {
       console.error('Security test suite failed:', error);
-      throw new Error(`Security test suite execution failed: ${error.message}`);
+      throw new Error(
+        `Security test suite execution failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     } finally {
       // Cleanup
       this.auditService.cleanup();
@@ -434,7 +436,7 @@ export class SecurityTestRunner {
    */
   private assessGDPRCompliance(
     auditResult?: SecurityAuditResult,
-    penetrationResult?: PenetrationTestResult
+    _penetrationResult?: PenetrationTestResult
   ) {
     const failedChecks: string[] = [];
     let score = 100;

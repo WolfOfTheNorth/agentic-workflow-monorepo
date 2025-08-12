@@ -25,3 +25,10 @@ export * from './circuit-breaker';
 
 // Fallback service
 export * from './fallback-service';
+
+// Token storage
+export * from './secure-token-storage';
+export * from './enhanced-token-storage';
+
+// Supabase adapter
+export * from './supabase-adapter';

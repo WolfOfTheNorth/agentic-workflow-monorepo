@@ -6,9 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI-First Modular Monorepo for rapid prototyping with React + Vite frontend and Django backend. Uses pnpm workspaces for efficient package management.
 
+## Project Documentation Structure
+
+This monorepo uses multiple CLAUDE.md files for better organization:
+
+- **Root CLAUDE.md** (this file): Main project overview and development commands
+- **apps/frontend/CLAUDE.md**: React/Vite frontend specific guidance
+- **apps/backend/CLAUDE.md**: Django backend specific guidance
+- **packages/CLAUDE.md**: Shared packages documentation
+- **packages/api/CLAUDE.md**: Authentication system and API client documentation
+
 ## Essential Development Commands
 
 ### Quick Setup
+
 ```bash
 # Install dependencies
 pnpm install
@@ -21,6 +32,7 @@ pnpm dev
 ```
 
 ### Development
+
 ```bash
 pnpm dev                 # Start all apps (frontend + backend)
 pnpm dev:frontend        # React frontend only (http://localhost:3000)
@@ -28,6 +40,7 @@ pnpm dev:backend         # Django backend only (http://localhost:8000)
 ```
 
 ### Testing
+
 ```bash
 pnpm test                # Run all tests
 pnpm test:frontend       # Frontend tests
@@ -36,6 +49,7 @@ pnpm test:e2e            # Playwright e2e tests
 ```
 
 ### Code Quality
+
 ```bash
 pnpm lint                # Lint all code
 pnpm lint:fix            # Fix linting issues
@@ -45,6 +59,7 @@ pnpm check               # Run all quality checks
 ```
 
 ### Building
+
 ```bash
 pnpm build               # Build all packages and apps
 pnpm build:frontend      # Build React frontend
@@ -52,6 +67,7 @@ pnpm build:backend       # Build Django backend
 ```
 
 ### Database (Django)
+
 ```bash
 pnpm migrate             # Apply database migrations
 pnpm makemigrations      # Create new migrations
@@ -60,19 +76,38 @@ pnpm makemigrations      # Create new migrations
 ## Architecture Overview
 
 **Monorepo Structure:**
-- `apps/frontend/` - React + Vite frontend application
-- `apps/backend/` - Django REST API backend
-- `packages/` - Shared packages (types, UI components, API client)
-- `configs/` - Shared ESLint, Prettier, TypeScript configurations
-- `tools/` - Build tools and development utilities
+
+```
+├── apps/
+│   ├── frontend/          # React + Vite frontend application
+│   │   ├── src/
+│   │   │   ├── components/    # React components (auth, ui, feedback)
+│   │   │   ├── contexts/      # React contexts for state management
+│   │   │   ├── hooks/         # Custom React hooks
+│   │   │   └── routes/        # Route configuration
+│   │   └── CLAUDE.md      # Frontend-specific guidance
+│   └── backend/           # Django REST API backend
+│       ├── backend/           # Django project configuration
+│       └── CLAUDE.md      # Backend-specific guidance
+├── packages/
+│   ├── shared/            # Common types, constants, utilities
+│   ├── api/              # Authentication system & API clients
+│   └── ui/               # Reusable React UI components
+├── configs/              # Shared ESLint, Prettier, TypeScript configs
+├── tools/                # Build tools and development utilities
+├── tests/                # E2E and integration tests
+└── docs/                 # Project documentation
+```
 
 **Tech Stack:**
+
 - Frontend: React 19, Vite 7, TypeScript, Tailwind CSS
 - Backend: Django, Django REST Framework, SQLite (dev), PostgreSQL (prod)
 - Package Manager: pnpm with workspaces
 - Testing: Jest, Playwright, Django test framework
 
 **Key Patterns:**
+
 - Shared types in `@agentic-workflow/shared` package
 - Reusable UI components in `@agentic-workflow/ui`
 - API client in `@agentic-workflow/api` package
@@ -394,19 +429,93 @@ Remember: The workflow ensures systematic feature development with proper docume
 
 ## Development Guidelines
 
+### **MANDATORY: Code Quality Requirements**
+
+**⚠️ CRITICAL REQUIREMENT**: All code changes MUST pass quality validation before being considered complete.
+
+#### **Code Quality Validation Command**
+
+```bash
+/code-quality-validator
+```
+
+Use this command BEFORE marking any coding task as complete. The validator checks:
+
+- ✅ ESLint compliance (zero errors)
+- ✅ TypeScript type checking (zero errors)
+- ✅ Prettier formatting (consistent style)
+- ✅ Build success (where applicable)
+
+#### **Quality Gate Rules**
+
+1. **No TypeScript Errors**: All type errors must be resolved
+2. **No ESLint Errors**: Linting errors are blocking; warnings should be addressed
+3. **Proper Formatting**: Code must be formatted with Prettier
+4. **Successful Builds**: Code must compile/build without errors
+
+#### **Before Every Commit**
+
+```bash
+# Always run before committing
+pnpm lint                # Fix linting issues
+pnpm type-check          # Verify TypeScript
+pnpm format              # Format code
+pnpm check               # Run all quality checks
+```
+
+#### **Quality Validation Workflow**
+
+1. **Write Code**: Implement your changes
+2. **Validate Quality**: Run `/code-quality-validator`
+3. **Fix Issues**: Address all reported problems
+4. **Re-validate**: Ensure all checks pass
+5. **Complete Task**: Only then mark task as complete
+
 ### Package Management
+
 - Add dependencies to root for build tools: `pnpm add -D -w <package>`
 - Add to specific workspace: `pnpm add --filter @agentic-workflow/frontend <package>`
 - Check package dependencies: `pnpm tools:package-check`
 
 ### Code Patterns
+
 - Follow existing TypeScript patterns in shared packages
 - Use workspace references: `@agentic-workflow/shared`, `@agentic-workflow/ui`, `@agentic-workflow/api`
 - Maintain consistent ESLint/Prettier configuration across workspaces
 - Use Django REST Framework patterns for API endpoints
+- **NEW**: Always validate code quality before task completion
 
 ### Testing Strategy
+
 - Unit tests for individual components/functions
 - Integration tests for API endpoints and package interactions
 - E2E tests for critical user flows with Playwright
 - Django tests for backend models and views
+
+# important-instruction-reminders
+
+## Code Quality Enforcement
+
+**🚨 MANDATORY FOR ALL CODE CHANGES 🚨**
+
+NEVER mark a coding task as complete without running code quality validation:
+
+1. **ALWAYS** run `/code-quality-validator` before completing any coding task
+2. **RESOLVE ALL** TypeScript errors and ESLint errors (zero tolerance)
+3. **FORMAT** all code with Prettier
+4. **VERIFY** all packages build successfully
+5. **ONLY THEN** mark the task as completed
+
+This is NOT optional - it's a hard requirement for maintaining code quality in this monorepo.
+
+### Quick Validation Commands:
+
+```bash
+pnpm lint                # Fix linting
+pnpm type-check          # Check types
+pnpm format              # Format code
+pnpm check               # Run all checks
+/code-quality-validator  # Full validation
+```
+
+**Failure to follow these steps will result in broken builds and commit issues.**

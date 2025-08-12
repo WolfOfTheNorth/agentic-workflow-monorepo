@@ -20,12 +20,16 @@
     "serve": "vite preview"
   },
   "dependencies": {
+    "@agentic-workflow/api": "workspace:*",
+    "@agentic-workflow/shared": "workspace:*",
+    "@agentic-workflow/ui": "workspace:*",
     "react": "^19.1.1",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@pimzino/claude-code-spec-workflow": "^1.3.6",
+    "@types/node": "^24.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.38.0",

@@ -115,8 +115,8 @@ export class SecureTokenStorage {
       try {
         value = await this.encryptToken(token);
         encrypted = true;
-      } catch (error) {
-        console.warn('Token encryption failed, storing unencrypted:', error);
+      } catch (_error) {
+        console.warn('Token encryption failed, storing unencrypted:', _error);
       }
     }
 
@@ -135,8 +135,8 @@ export class SecureTokenStorage {
     if (this.config.storage.useSecureStorage && typeof window !== 'undefined') {
       try {
         this.storeInSecureStorage(key, storedToken);
-      } catch (error) {
-        console.warn('Secure storage failed, using memory only:', error);
+      } catch (_error) {
+        console.warn('Secure storage failed, using memory only:', _error);
       }
     }
   }
@@ -149,7 +149,7 @@ export class SecureTokenStorage {
 
     // Try to load from secure storage if not in memory
     if (!storedToken && this.config.storage.useSecureStorage && typeof window !== 'undefined') {
-      storedToken = this.loadFromSecureStorage(key);
+      storedToken = this.loadFromSecureStorage(key) || undefined;
       if (storedToken) {
         this.tokens.set(key, storedToken);
       }
@@ -173,8 +173,8 @@ export class SecureTokenStorage {
     if (storedToken.encrypted && this.config.encryption.enabled && this.encryptionKey) {
       try {
         token = await this.decryptToken(storedToken.value);
-      } catch (error) {
-        console.error('Token decryption failed:', error);
+      } catch (_error) {
+        console.error('Token decryption failed:', _error);
         this.removeToken(key); // Remove corrupted token
         return null;
       }
@@ -202,8 +202,8 @@ export class SecureTokenStorage {
     if (this.config.storage.useSecureStorage && typeof window !== 'undefined') {
       try {
         this.removeFromSecureStorage(key);
-      } catch (error) {
-        console.warn('Failed to remove from secure storage:', error);
+      } catch (_error) {
+        console.warn('Failed to remove from secure storage:', _error);
       }
     }
   }
@@ -283,7 +283,7 @@ export class SecureTokenStorage {
       return null;
     }
 
-    const { value, ...metadata } = storedToken;
+    const { value: _value, ...metadata } = storedToken;
     return metadata;
   }
 
@@ -292,7 +292,7 @@ export class SecureTokenStorage {
    */
   clearAllTokens(): void {
     // Securely erase all token values
-    for (const [key, storedToken] of this.tokens.entries()) {
+    for (const [_key, storedToken] of this.tokens.entries()) {
       if (typeof storedToken.value === 'string') {
         this.securelyEraseString(storedToken.value);
       }
@@ -304,8 +304,8 @@ export class SecureTokenStorage {
     if (this.config.storage.useSecureStorage && typeof window !== 'undefined') {
       try {
         this.clearSecureStorage();
-      } catch (error) {
-        console.warn('Failed to clear secure storage:', error);
+      } catch (_error) {
+        console.warn('Failed to clear secure storage:', _error);
       }
     }
   }
@@ -330,8 +330,8 @@ export class SecureTokenStorage {
         false, // Not extractable
         ['encrypt', 'decrypt']
       );
-    } catch (error) {
-      console.error('Failed to initialize encryption:', error);
+    } catch (_error) {
+      console.error('Failed to initialize encryption:', _error);
       this.config.encryption.enabled = false;
     }
   }
@@ -412,7 +412,7 @@ export class SecureTokenStorage {
     // Try sessionStorage first (more secure than localStorage)
     try {
       sessionStorage.setItem(storageKey, data);
-    } catch (error) {
+    } catch {
       // Fallback to localStorage
       try {
         localStorage.setItem(storageKey, data);
@@ -438,7 +438,7 @@ export class SecureTokenStorage {
       if (data) {
         return JSON.parse(data);
       }
-    } catch (error) {
+    } catch {
       // Ignore and try localStorage
     }
 
@@ -448,8 +448,8 @@ export class SecureTokenStorage {
       if (data) {
         return JSON.parse(data);
       }
-    } catch (error) {
-      console.warn('Failed to load from secure storage:', error);
+    } catch (_error) {
+      console.warn('Failed to load from secure storage:', _error);
     }
 
     return null;
@@ -467,13 +467,13 @@ export class SecureTokenStorage {
 
     try {
       sessionStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch {
       // Ignore
     }
 
     try {
       localStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch {
       // Ignore
     }
   }
@@ -497,7 +497,7 @@ export class SecureTokenStorage {
         }
       }
       keysToRemove.forEach(key => sessionStorage.removeItem(key));
-    } catch (error) {
+    } catch {
       // Ignore
     }
 
@@ -511,7 +511,7 @@ export class SecureTokenStorage {
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key));
-    } catch (error) {
+    } catch {
       // Ignore
     }
   }
@@ -519,11 +519,11 @@ export class SecureTokenStorage {
   /**
    * Securely erase a string from memory
    */
-  private securelyEraseString(str: string): void {
+  private securelyEraseString(_str: string): void {
     // In JavaScript, strings are immutable, so we can't actually overwrite them
     // This is a placeholder for where memory clearing would happen in other languages
     // The best we can do is ensure references are removed
-    str = '';
+    // _str = ''; // Cannot reassign parameter
   }
 
   /**
