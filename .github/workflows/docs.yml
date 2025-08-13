@@ -38,7 +38,7 @@ jobs:
       should_generate: ${{ steps.changes.outputs.should_generate }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -94,7 +94,7 @@ jobs:
     if: needs.detect-changes.outputs.should_generate == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -288,7 +288,7 @@ jobs:
       needs.generate-docs.result == 'success'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -324,7 +324,7 @@ jobs:
     if: needs.generate-docs.result == 'success'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download documentation
         uses: actions/download-artifact@v4
