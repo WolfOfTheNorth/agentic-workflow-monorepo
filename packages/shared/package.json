@@ -45,7 +45,7 @@
     "jest": "^30.0.5",
     "ts-jest": "^29.1.0",
     "typescript": "^5.0.0",
-    "eslint": "^9.32.0"
+    "eslint": "^9.33.0"
   },
   "dependencies": {}
 }
