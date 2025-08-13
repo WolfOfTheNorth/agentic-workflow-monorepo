@@ -179,13 +179,13 @@ jobs:
 
     steps:
       - name: Download security report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         continue-on-error: true
         with:
           name: security-report-${{ github.run_number }}
 
       - name: Download dependency report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         continue-on-error: true
         with:
           name: dependency-report-${{ github.run_number }}
